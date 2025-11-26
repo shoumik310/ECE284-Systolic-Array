@@ -1,8 +1,0 @@
-./core_tb.v
-./mac_array.v
-
-./fifos/fifo_depth64.v
-./fifos/fifo_mux_2_1.v
-./fifos/fifo_mux_8_1.v
-./fifos/fifo_mux_16_1.v
-./fifos/ofifo.v

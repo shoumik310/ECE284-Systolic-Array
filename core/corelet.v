@@ -6,13 +6,11 @@ module corelet (
     l0_rd, l0_wr,
     sfp_acc_en,
     ofifo_rd,
-    
-    // Data Interfaces
-    input  [row*bw-1:0] i_xmem_data,      // 32-bit Input from XMEM
-    input  [col*psum_bw-1:0] i_pmem_data, // 128-bit Input from PMEM (for Accumulation)
-    
-    output [col*psum_bw-1:0] o_sfp_out,   // 128-bit Output from SFP
-    output o_ofifo_valid
+
+    i_xmem_data,
+    i_pmem_data,
+    o_sfp_out,
+    o_ofifo_valid
 );
 
   parameter row = 8;
@@ -25,6 +23,13 @@ module corelet (
   input l0_rd, l0_wr;
   input sfp_acc_en;
   input ofifo_rd;
+
+  // Data Interfaces
+  input  [row*bw-1:0] i_xmem_data;     // 32-bit Input from XMEM
+  input  [col*psum_bw-1:0] i_pmem_data; // 128-bit Input from PMEM (for Accumulation)
+
+  output [col*psum_bw-1:0] o_sfp_out;   // 128-bit Output from SFP
+  output o_ofifo_valid;
 
   // Internal Wires
   wire [row*bw-1:0] l0_out;

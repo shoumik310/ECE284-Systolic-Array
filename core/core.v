@@ -1,4 +1,4 @@
-module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
+module core (clk, inst, ofifo_valid, D_xmem, sfp_out, mode, reset);
 
   parameter bw = 4;
   parameter psum_bw = 16;
@@ -7,6 +7,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
 
   input clk;
   input reset;
+  input mode; //0: 4-bit act and 4-bit weight;    1: 2-bit act and 4-bit weight
   input [33:0] inst;          
   input [row*bw-1:0] D_xmem;  
   
@@ -76,7 +77,8 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .l0_wr(l0_wr),
       .sfp_acc_en(acc_en),
       .ofifo_rd(ofifo_rd),
-      
+      .mode(mode),
+
       .i_xmem_data(xmem_out),   
       .i_pmem_data(pmem_out),   
       

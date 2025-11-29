@@ -143,7 +143,7 @@ module fifo_depth64 (rd_clk, wr_clk, in, out, rd, wr, o_full, o_empty, reset);
         wr_ptr <= wr_ptr + 1;
       end
 
-      if (wr == 1) begin
+      if ((wr == 1) && (full == 0)) begin
         case (wr_ptr[5:0])
          6'b000000   :    q0  <= in ;
          6'b000001   :    q1  <= in ;

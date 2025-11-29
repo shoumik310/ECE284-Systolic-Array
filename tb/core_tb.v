@@ -276,7 +276,7 @@ initial begin
     #0.5 clk = 1'b0; l0_rd = 1;
     #0.5 clk = 1'b1;
 
-    #0.5 clk = 1'b0; // Cycle for read signal to propogate
+    #0.5 clk = 1'b0; execute = 1;// Cycle for read signal to propogate
     #0.5 clk = 1'b1;
 
     // Cycles for the FIFO to complete
@@ -318,7 +318,7 @@ initial begin
       #0.5 clk = 1'b1;  
     end
 
-    #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
+    #0.5 clk = 1'b0;  WEN_pmem = 1;  CEN_pmem = 1; A_xmem = 0; ofifo_rd = 0;
     #0.5 clk = 1'b1; 
     /////////////////////////////////////
 

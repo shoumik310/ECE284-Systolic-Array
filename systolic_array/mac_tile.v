@@ -37,10 +37,10 @@ always @ (posedge clk) begin
     if (reset == 1) begin
         inst_q <= 2'b00;
         load_ready_q <= 1'b1;
-        
-        a_q <= 0;
-        b_q <= 0;
-        c_q <= 0;
+               
+		a_q <= 4'bxxxx;
+		b_q <= 4'bxxxx;
+		c_q <= 4'b0000;
         
     end else begin
         

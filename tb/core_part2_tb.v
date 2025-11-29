@@ -69,7 +69,7 @@ integer x_file, x_scan_file ; // file_handler
 integer w_file, w_scan_file ; // file_handler
 integer acc_file, acc_scan_file ; // file_handler
 integer out_file, out_scan_file ; // file_handler
-integer captured_data; 
+integer captured_data;
 integer t, i, j, k, kij;
 integer error;
 
@@ -85,93 +85,71 @@ assign inst_q[5]   = ififo_wr_q;
 assign inst_q[4]   = ififo_rd_q;
 assign inst_q[3]   = l0_rd_q;
 assign inst_q[2]   = l0_wr_q;
-assign inst_q[1]   = execute_q; 
+assign inst_q[1]   = execute_q;
 assign inst_q[0]   = load_q; 
 
-core  #(.bw(bw), .col(col), .row(row)) core_instance (
+// NEW: Mode Control Signal
+reg mode = 0; 
+integer k_mode; // Loop variable for mode testing
+reg [8*30:1] x_file_name;   // NEW: Variable for activation file name
+reg [8*30:1] out_file_name; // NEW: Variable for expected output file name
+
+core  #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) core_instance (
 	.clk(clk), 
 	.inst(inst_q),
 	.ofifo_valid(ofifo_valid),
-  .D_xmem(D_xmem_q), 
-  .sfp_out(sfp_out), 
-	.reset(reset)); 
-
+    .D_xmem(D_xmem_q),
+    .mode(mode),
+    .sfp_out(sfp_out), 
+	.reset(reset)
+);
 
 initial begin 
-
-  inst_w   = 0; 
-  D_xmem   = 0;
-  CEN_xmem = 1; // Disable XMEM
-  WEN_xmem = 1; // Disable write to XMEM
-  A_xmem   = 0;
-  ofifo_rd = 0;
-  ififo_wr = 0;
-  ififo_rd = 0;
-  l0_rd    = 0;
-  l0_wr    = 0;
-  execute  = 0;
-  load     = 0;
-
   $dumpfile("core_tb.vcd");
   $dumpvars(0,core_tb);
 
-  x_file = $fopen("activation.txt", "r");
-  // Following three lines are to remove the first three comment lines of the file
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-
-  //////// Reset /////////
-  #0.5 clk = 1'b0;   reset = 1;
-  #0.5 clk = 1'b1; 
-
-  for (i=0; i<10 ; i=i+1) begin
-    #0.5 clk = 1'b0;
-    #0.5 clk = 1'b1;  
-  end
-
-  #0.5 clk = 1'b0;   reset = 0;
-  #0.5 clk = 1'b1; 
-
-  #0.5 clk = 1'b0;   
-  #0.5 clk = 1'b1;   
-  /////////////////////////
-
-  /////// Activation data writing to memory ///////
-  for (t=0; t<len_nij; t=t+1) begin  
-    #0.5 clk = 1'b0;  x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
-    #0.5 clk = 1'b1;   
-  end
-
-  #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
-  #0.5 clk = 1'b1; 
-
-  $fclose(x_file);
-  /////////////////////////////////////////////////
-
-
-  // for (kij=0; kij<9; kij=kij+1) begin  // kij loop
-
-    // case(kij)
-    //  0: w_file_name = "weight_itile0_otile0_kij0.txt";
-    //  1: w_file_name = "weight_itile0_otile0_kij1.txt";
-    //  2: w_file_name = "weight_itile0_otile0_kij2.txt";
-    //  3: w_file_name = "weight_itile0_otile0_kij3.txt";
-    //  4: w_file_name = "weight_itile0_otile0_kij4.txt";
-    //  5: w_file_name = "weight_itile0_otile0_kij5.txt";
-    //  6: w_file_name = "weight_itile0_otile0_kij6.txt";
-    //  7: w_file_name = "weight_itile0_otile0_kij7.txt";
-    //  8: w_file_name = "weight_itile0_otile0_kij8.txt";
-    // endcase
+  // START MODE LOOP
+  // This will run the full test for Mode 0, then Mode 1
+  for (k_mode = 0; k_mode < 2; k_mode = k_mode + 1) begin
     
-    w_file_name = "weight.txt";
+    mode = k_mode;
+    $display("##########################################################");
+    $display("### STARTING VERIFICATION FOR MODE: %0d (0=4b/4b, 1=2b/4b) ###", mode);
+    $display("##########################################################");
 
-    w_file = $fopen(w_file_name, "r");
+    // Initialize Signals for this run
+    inst_w   = 0; 
+    D_xmem   = 0;
+    CEN_xmem = 1; // Disable XMEM
+    WEN_xmem = 1; // Disable write to XMEM
+    A_xmem   = 0;
+    ofifo_rd = 0;
+    ififo_wr = 0;
+    ififo_rd = 0;
+    l0_rd    = 0;
+    l0_wr    = 0;
+    execute  = 0;
+    load     = 0;
+
+    // FILE SELECTION BASED ON MODE
+    if (mode == 0) begin
+        x_file_name = "activation.txt";
+        w_file_name = "weight.txt";
+        out_file_name = "psum.txt";
+    end else begin
+        // Assuming separate files for Mode 1 due to data packing differences
+        x_file_name = "activation_m1.txt"; 
+        w_file_name = "weight_m1.txt";
+        out_file_name = "psum_m1.txt";
+    end
+
+    x_file = $fopen(x_file_name, "r");
     // Following three lines are to remove the first three comment lines of the file
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
+    x_scan_file = $fscanf(x_file,"%s", stringvar);
+    x_scan_file = $fscanf(x_file,"%s", stringvar);
+    x_scan_file = $fscanf(x_file,"%s", stringvar);
 
+    //////// Reset /////////
     #0.5 clk = 1'b0;   reset = 1;
     #0.5 clk = 1'b1; 
 
@@ -181,52 +159,77 @@ initial begin
     end
 
     #0.5 clk = 1'b0;   reset = 0;
-    #0.5 clk = 1'b1; 
-
+    #0.5 clk = 1'b1;
     #0.5 clk = 1'b0;   
     #0.5 clk = 1'b1;   
+    /////////////////////////
 
+    /////// Activation data writing to memory ///////
+    for (t=0; t<len_nij; t=t+1) begin  
+      #0.5 clk = 1'b0;
+      x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
+      #0.5 clk = 1'b1;   
+    end
+
+    #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
+    #0.5 clk = 1'b1; 
+
+    $fclose(x_file);
+    /////////////////////////////////////////////////
+
+    w_file = $fopen(w_file_name, "r");
+    // Following three lines are to remove the first three comment lines of the file
+    w_scan_file = $fscanf(w_file,"%s", stringvar);
+    w_scan_file = $fscanf(w_file,"%s", stringvar);
+    w_scan_file = $fscanf(w_file,"%s", stringvar);
+
+    #0.5 clk = 1'b0;   reset = 1;
+    #0.5 clk = 1'b1;
+    for (i=0; i<10 ; i=i+1) begin
+      #0.5 clk = 1'b0;
+      #0.5 clk = 1'b1;
+    end
+
+    #0.5 clk = 1'b0;   reset = 0;
+    #0.5 clk = 1'b1; 
+
+    #0.5 clk = 1'b0;
+    #0.5 clk = 1'b1;   
 
     /////// Kernel data writing to memory ///////
 
     A_xmem = 11'b10000000000;
-
     for (t=0; t<col; t=t+1) begin  
-      #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
-      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem);
+      WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
+      #0.5 clk = 1'b1;
     end
 
     #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
     #0.5 clk = 1'b1; 
     /////////////////////////////////////
 
-
-
     /////// Kernel data writing to L0 ///////
-
-    // Assuming the output of the XMEM SRAM is connected directly to the L0 FIFO
-    #0.5 clk = 1'b0; A_xmem = 11'b10000000000;
+    #0.5 clk = 1'b0;
+    A_xmem = 11'b10000000000;
     #0.5 clk = 1'b1;
 
     for(t=0; t<col; t=t+1) begin  
-      #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
-      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b0;
+      CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+      #0.5 clk = 1'b1;
     end
 
     #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
-    #0.5 clk = 1'b1; 
-
+    #0.5 clk = 1'b1;
     #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
-    #0.5 clk = 1'b1; 
-
+    #0.5 clk = 1'b1;
     /////////////////////////////////////
 
-
-
     /////// Kernel loading to PEs ///////
-    
     // Assuming l0 direcly pushes into PE
-    #0.5 clk = 1'b0; l0_rd = 1; 
+    #0.5 clk = 1'b0;
+    l0_rd = 1; 
     #0.5 clk = 1'b1;
 
     // Cycles for the FIFO to complete
@@ -235,175 +238,159 @@ initial begin
       load = 1;
       #0.5 clk = 1'b1;
     end
-
     /////////////////////////////////////
   
-
     ////// provide some intermission to clear up the kernel loading ///
     #0.5 clk = 1'b0;
     load = 0;
     l0_rd = 0;
-    #0.5 clk = 1'b1;  
-
+    #0.5 clk = 1'b1;
     for (i=0; i<10 ; i=i+1) begin
       #0.5 clk = 1'b0;
-      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b1;
     end
     /////////////////////////////////////
 
-
-
     /////// Activation data writing to L0 ///////
-    
-    // Assuming the output of the XMEM SRAM is connected directly to the L0 FIFO
-    #0.5 clk = 1'b0; A_xmem = 11'b00000000000;
+    #0.5 clk = 1'b0;
+    A_xmem = 11'b00000000000;
     #0.5 clk = 1'b1;
 
     for(t=0; t<len_nij; t=t+1) begin  
-      #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
-      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b0;
+      CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+      #0.5 clk = 1'b1;
     end
 
     #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
-    #0.5 clk = 1'b1; 
-
+    #0.5 clk = 1'b1;
     #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
-    #0.5 clk = 1'b1; 
+    #0.5 clk = 1'b1;
     /////////////////////////////////////
-
-
 
     /////// Execution ///////
     // Assuming l0 direcly pushes into PE
-    #0.5 clk = 1'b0; l0_rd = 1;
+    #0.5 clk = 1'b0;
+    l0_rd = 1;
     #0.5 clk = 1'b1;
 
-    #0.5 clk = 1'b0; // Cycle for read signal to propogate
+    #0.5 clk = 1'b0;
+    // Cycle for read signal to propogate
     #0.5 clk = 1'b1;
-
     // Cycles for the FIFO to complete
     for(t=0; t< len_nij; t=t+1) begin
-      #0.5 clk = 1'b0;  execute = 1;
+      #0.5 clk = 1'b0;
+      execute = 1;
       #0.5 clk = 1'b1;
     end
     /////////////////////////////////////
 
     //// provide some intermission to complete execution ///
-    #0.5 clk = 1'b0;  execute = 0; l0_rd = 0;
-    #0.5 clk = 1'b1;  
-  
-
+    #0.5 clk = 1'b0;
+    execute = 0; l0_rd = 0;
+    #0.5 clk = 1'b1;
     for (i=0; i<10 ; i=i+1) begin
       #0.5 clk = 1'b0;
-      #0.5 clk = 1'b1;  
+      #0.5 clk = 1'b1;
     end
-
     ////////////////////////////////////
 
     //////// OFIFO READ ////////
-    // Ideally, OFIFO should be read while execution, but we have enough ofifo
-    // depth so we can fetch out after execution.
     t=0;
     A_pmem= 11'b00000000000;
 
     while(t < len_nij) begin
-      #0.5 clk = 1'b0;  
-      
+      #0.5 clk = 1'b0;
       if(ofifo_valid == 1'b1) begin
-        WEN_pmem = 0; CEN_pmem = 0; ofifo_rd=1; if (t>0) A_pmem = A_pmem + 1; 
+        WEN_pmem = 0; CEN_pmem = 0; ofifo_rd=1;
+        if (t>0) A_pmem = A_pmem + 1; 
         t = t+1;
       end
       else begin
         CEN_pmem = 1; ofifo_rd =0;
       end
-
       #0.5 clk = 1'b1;  
     end
 
-    #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
-    #0.5 clk = 1'b1; 
+    #0.5 clk = 1'b0;
+    WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
+    #0.5 clk = 1'b1;
     /////////////////////////////////////
 
+    ////////// Accumulation Verification /////////
+    out_file = $fopen(out_file_name, "r");
+    // Following three lines are to remove the first three comment lines of the file
+    out_scan_file = $fscanf(out_file,"%s", stringvar);
+    out_scan_file = $fscanf(out_file,"%s", stringvar); 
+    out_scan_file = $fscanf(out_file,"%s", stringvar); 
 
-  // end  // end of kij loop
+    error = 0;
+    $display("############ Verification Start for MODE %0d #############", mode);
+    
+    // TODO: Evaluate without this
+    //SECTION - Accumulation
+    // acc_file = $fopen("acc_add.txt", "r"); 
+    // for (i=0; i<len_onij+1; i=i+1) begin 
 
+    //   #0.5 clk = 1'b0; 
+    //   #0.5 clk = 1'b1;  
 
-  ////////// Accumulation /////////
-  out_file = $fopen("psum.txt", "r");  
+    //   if (i>0) begin
+    //    out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+    //      if (sfp_out == answer)
+    //        $display("%2d-th output featuremap Data matched! :D", i); 
+    //      else begin
+    //        $display("%2d-th output featuremap Data ERROR!!", i); 
+    //        $display("sfpout: %128b", sfp_out);
+    //        $display("answer: %128b", answer);
+    //        error = 1;
+    //      end
+    //   end
+    
+    
+    //   #0.5 clk = 1'b0; reset = 1;
+    //   #0.5 clk = 1'b1;  
+    //   #0.5 clk = 1'b0; reset = 0; 
+    //   #0.5 clk = 1'b1;  
 
-  // Following three lines are to remove the first three comment lines of the file
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
+    //   for (j=0; j<len_kij+1; j=j+1) begin 
 
-  error = 0;
+    //     #0.5 clk = 1'b0;   
+    //       if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
+    //                      else  begin CEN_pmem = 1; WEN_pmem = 1; end
 
+    //       if (j>0)  acc = 1;  
+    //     #0.5 clk = 1'b1;   
+    //   end
 
+    //   #0.5 clk = 1'b0; acc = 0;
+    //   #0.5 clk = 1'b1; 
+    // end
+    //!SECTION
+    
+    if (error == 0) begin
+  	  $display("############ No error detected for MODE %0d ##############", mode);
+    end
 
-  $display("############ Verification Start during accumulation #############"); 
-  
-  // TODO: Evaluate without this
-  //SECTION - Accumulation
-  // acc_file = $fopen("acc_add.txt", "r"); 
-  // for (i=0; i<len_onij+1; i=i+1) begin 
+    $fclose(acc_file);
+    $fclose(w_file);
+    $fclose(out_file);
+    //////////////////////////////////
 
-  //   #0.5 clk = 1'b0; 
-  //   #0.5 clk = 1'b1;  
+    for (t=0; t<10; t=t+1) begin  
+      #0.5 clk = 1'b0;
+      #0.5 clk = 1'b1;  
+    end
 
-  //   if (i>0) begin
-  //    out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
-  //      if (sfp_out == answer)
-  //        $display("%2d-th output featuremap Data matched! :D", i); 
-  //      else begin
-  //        $display("%2d-th output featuremap Data ERROR!!", i); 
-  //        $display("sfpout: %128b", sfp_out);
-  //        $display("answer: %128b", answer);
-  //        error = 1;
-  //      end
-  //   end
-   
- 
-  //   #0.5 clk = 1'b0; reset = 1;
-  //   #0.5 clk = 1'b1;  
-  //   #0.5 clk = 1'b0; reset = 0; 
-  //   #0.5 clk = 1'b1;  
+  end // END MODE LOOP
 
-  //   for (j=0; j<len_kij+1; j=j+1) begin 
-
-  //     #0.5 clk = 1'b0;   
-  //       if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
-  //                      else  begin CEN_pmem = 1; WEN_pmem = 1; end
-
-  //       if (j>0)  acc = 1;  
-  //     #0.5 clk = 1'b1;   
-  //   end
-
-  //   #0.5 clk = 1'b0; acc = 0;
-  //   #0.5 clk = 1'b1; 
-  // end
-  //!SECTION
-
-
-  if (error == 0) begin
-  	$display("############ No error detected ##############"); 
-  	$display("########### Project Completed !! ############"); 
-
-  end
-
-  $fclose(acc_file);
-  //////////////////////////////////
-
-  for (t=0; t<10; t=t+1) begin  
-    #0.5 clk = 1'b0;  
-    #0.5 clk = 1'b1;  
-  end
-
+  $display("########### Project Completed !! ############"); 
   #10 $finish;
 
 end
 
 always @ (posedge clk) begin
-   inst_w_q   <= inst_w; 
+   inst_w_q   <= inst_w;
    D_xmem_q   <= D_xmem;
    CEN_xmem_q <= CEN_xmem;
    WEN_xmem_q <= WEN_xmem;
@@ -420,6 +407,5 @@ always @ (posedge clk) begin
    execute_q  <= execute;
    load_q     <= load;
 end
-
 
 endmodule

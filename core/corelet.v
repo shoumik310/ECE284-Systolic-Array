@@ -10,6 +10,7 @@ module corelet (
     i_xmem_data,
     i_pmem_data,
     o_sfp_out,
+    mode,
     o_ofifo_valid
 );
 
@@ -24,6 +25,7 @@ module corelet (
   input sfp_acc_en;
   input ofifo_rd;
 
+  input mode;
   // Data Interfaces
   input  [row*bw-1:0] i_xmem_data;     // 32-bit Input from XMEM
   input  [col*psum_bw-1:0] i_pmem_data; // 128-bit Input from PMEM (for Accumulation)
@@ -61,6 +63,7 @@ module corelet (
       .in_w(l0_out),
       .inst_w(inst_w),
       .in_n(128'b0),        // North input unused
+      .mode(mode),
       .out_s(array_out_s),  // Output goes to OFIFO
       .valid(array_valid)
   );

@@ -3,17 +3,18 @@
 // Perform 2X4 bit MAC operation
 module mac (out, a, b, c);
 
-parameter act_bw = 2;
-parameter w_bw = 4;
-parameter psum_bw = 12;
+parameter bw = 4;
+parameter psum_bw = 16;
+
+parameter act_bw = 2; // activation bitwidth is 2 bits
 
 output signed [psum_bw-1:0] out;
 input signed  [act_bw-1:0] a;  // activation
-input signed  [w_bw-1:0] b;  // weight
+input signed  [bw-1:0] b;  // weight
 input signed  [psum_bw-1:0] c;
 
 
-wire signed [2*(act_bw + w_bw):0] product;
+wire signed [2*(act_bw + bw):0] product;
 wire signed [psum_bw-1:0] psum;
 wire signed [act_bw:0]   a_pad;
 

@@ -5,7 +5,7 @@
 ./systolic_array/mac.v
 ./systolic_array/gated_clock/mac_tile_gclk.v
 ./systolic_array/gated_clock/mac_row.v
-./systolic_array/gated_clock/mac_array.v
+./systolic_array/mac_array.v
 
 ./fifos/fifo_depth64.v
 ./fifos/fifo_depth8.v

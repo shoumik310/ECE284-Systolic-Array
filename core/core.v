@@ -39,8 +39,15 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, mode, reset);
   wire [col*psum_bw-1:0] pmem_out;    
   wire [col*psum_bw-1:0] pmem_in;     
   
-  // The SFP output connects to the PMEM Input
-  assign pmem_in = sfp_out;
+  wire [col*psum_bw-1:0] ofifo_out; 
+  
+  // The select which output connects to the PMEM Input
+  fifo_mux_2_1 #(.bw(col*psum_bw)) mux_inst (
+      .in0(ofifo_out),
+      .in1(sfp_out),
+      .sel(acc_en),
+      .out(pmem_in)
+  );
 
   // --------------------------------------------------------
   // 3. Activation/Weight SRAM (XMEM)
@@ -59,7 +66,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, mode, reset);
   // --------------------------------------------------------
   sram_128b_w2048 pmem_inst (
       .CLK(clk),
-      .D(pmem_in),      // Data from SFP (128-bit)
+      .D(pmem_in),      
       .Q(pmem_out),     // Data to SFP (128-bit)
       .CEN(cen_pmem),
       .WEN(wen_pmem),
@@ -83,6 +90,8 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, mode, reset);
       .i_pmem_data(pmem_out),   
       
       .o_sfp_out(sfp_out),      
+      .o_ofifo_out(ofifo_out),
+      
       .o_ofifo_valid(ofifo_valid)
   );
 

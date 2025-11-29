@@ -149,22 +149,22 @@ initial begin
   $fclose(x_file);
   /////////////////////////////////////////////////
 
+  A_pmem= 11'b00000000001;
+  for (kij=0; kij<9; kij=kij+1) begin  // kij loop
 
-  // for (kij=0; kij<9; kij=kij+1) begin  // kij loop
-
-    // case(kij)
-    //  0: w_file_name = "weight_itile0_otile0_kij0.txt";
-    //  1: w_file_name = "weight_itile0_otile0_kij1.txt";
-    //  2: w_file_name = "weight_itile0_otile0_kij2.txt";
-    //  3: w_file_name = "weight_itile0_otile0_kij3.txt";
-    //  4: w_file_name = "weight_itile0_otile0_kij4.txt";
-    //  5: w_file_name = "weight_itile0_otile0_kij5.txt";
-    //  6: w_file_name = "weight_itile0_otile0_kij6.txt";
-    //  7: w_file_name = "weight_itile0_otile0_kij7.txt";
-    //  8: w_file_name = "weight_itile0_otile0_kij8.txt";
-    // endcase
+    case(kij)
+     0: w_file_name = "./weights/weight_0.txt";
+     1: w_file_name = "./weights/weight_1.txt";
+     2: w_file_name = "./weights/weight_2.txt";
+     3: w_file_name = "./weights/weight_3.txt";
+     4: w_file_name = "./weights/weight_4.txt";
+     5: w_file_name = "./weights/weight_5.txt";
+     6: w_file_name = "./weights/weight_6.txt";
+     7: w_file_name = "./weights/weight_7.txt";
+     8: w_file_name = "./weights/weight_7.txt";
+    endcase
     
-    w_file_name = "weight.txt";
+    // w_file_name = "weight.txt";
 
     w_file = $fopen(w_file_name, "r");
     // Following three lines are to remove the first three comment lines of the file
@@ -278,7 +278,7 @@ initial begin
     #0.5 clk = 1'b0; l0_rd = 1;
     #0.5 clk = 1'b1;
 
-    #0.5 clk = 1'b0; // Cycle for read signal to propogate
+    #0.5 clk = 1'b0; execute = 1;// Cycle for read signal to propogate
     #0.5 clk = 1'b1;
 
     // Cycles for the FIFO to complete
@@ -303,84 +303,83 @@ initial begin
     //////// OFIFO READ ////////
     // Ideally, OFIFO should be read while execution, but we have enough ofifo
     // depth so we can fetch out after execution.
-    t=0;
-    A_pmem= 11'b00000000000;
 
-    while(t < len_nij) begin
+    while(!ofifo_valid) begin
       #0.5 clk = 1'b0;  
-      
-      if(ofifo_valid == 1'b1) begin
-        WEN_pmem = 0; CEN_pmem = 0; ofifo_rd=1; if (t>0) A_pmem = A_pmem + 1; 
-        t = t+1;
-      end
-      else begin
-        CEN_pmem = 1; ofifo_rd =0;
-      end
+      #0.5 clk = 1'b1;
+    end
 
+    // A_pmem= 11'b00000000000;
+    #0.5 clk = 1'b0; ofifo_rd = 1;
+    #0.5 clk = 1'b1;
+
+    #0.5 clk = 1'b0; WEN_pmem = 0; CEN_pmem = 0; 
+    #0.5 clk = 1'b1;
+
+    for(t=0; t<len_nij; t=t+1) begin
+      #0.5 clk = 1'b0; A_pmem = A_pmem + 1; 
       #0.5 clk = 1'b1;  
     end
 
-    #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
+    #0.5 clk = 1'b0;  WEN_pmem = 1;  CEN_pmem = 1; A_xmem = 0; ofifo_rd = 0;
     #0.5 clk = 1'b1; 
     /////////////////////////////////////
 
-
-  // end  // end of kij loop
+  end  // end of kij loop
 
 
   ////////// Accumulation /////////
-  out_file = $fopen("psum.txt", "r");  
+  out_file = $fopen("./outputs/output_accumulated.txt", "r");  
 
   // Following three lines are to remove the first three comment lines of the file
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
-  out_scan_file = $fscanf(out_file,"%s", stringvar); 
+  out_scan_file = $fgets(stringvar, out_file); 
+  out_scan_file = $fgets(stringvar, out_file); 
+  out_scan_file = $fgets(stringvar, out_file); 
 
   error = 0;
-
-
 
   $display("############ Verification Start during accumulation #############"); 
   
   // TODO: Evaluate without this
   //SECTION - Accumulation
-  // acc_file = $fopen("acc_add.txt", "r"); 
-  // for (i=0; i<len_onij+1; i=i+1) begin 
+  acc_file = $fopen("acc_add.txt", "r"); 
 
-  //   #0.5 clk = 1'b0; 
-  //   #0.5 clk = 1'b1;  
+  for (i=0; i<len_onij+1; i=i+1) begin 
 
-  //   if (i>0) begin
-  //    out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
-  //      if (sfp_out == answer)
-  //        $display("%2d-th output featuremap Data matched! :D", i); 
-  //      else begin
-  //        $display("%2d-th output featuremap Data ERROR!!", i); 
-  //        $display("sfpout: %128b", sfp_out);
-  //        $display("answer: %128b", answer);
-  //        error = 1;
-  //      end
-  //   end
+    #0.5 clk = 1'b0; 
+    #0.5 clk = 1'b1;  
+
+    if (i>0) begin
+     out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+       if (sfp_out == answer)
+         $display("%2d-th output featuremap Data matched! :D", i); 
+       else begin
+         $display("%2d-th output featuremap Data ERROR!!", i); 
+         $display("sfpout: %128b", sfp_out);
+         $display("answer: %128b", answer);
+         error = 1;
+       end
+    end
    
  
-  //   #0.5 clk = 1'b0; reset = 1;
-  //   #0.5 clk = 1'b1;  
-  //   #0.5 clk = 1'b0; reset = 0; 
-  //   #0.5 clk = 1'b1;  
+    #0.5 clk = 1'b0; reset = 1;
+    #0.5 clk = 1'b1;  
+    #0.5 clk = 1'b0; reset = 0; 
+    #0.5 clk = 1'b1;  
 
-  //   for (j=0; j<len_kij+1; j=j+1) begin 
+    for (j=0; j<len_kij+1; j=j+1) begin 
 
-  //     #0.5 clk = 1'b0;   
-  //       if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
-  //                      else  begin CEN_pmem = 1; WEN_pmem = 1; end
+      #0.5 clk = 1'b0;   
+        if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
+                       else  begin CEN_pmem = 1; WEN_pmem = 1; end
 
-  //       if (j>0)  acc = 1;  
-  //     #0.5 clk = 1'b1;   
-  //   end
+        if (j>0)  acc = 1;  
+      #0.5 clk = 1'b1;   
+    end
 
-  //   #0.5 clk = 1'b0; acc = 0;
-  //   #0.5 clk = 1'b1; 
-  // end
+    #0.5 clk = 1'b0; acc = 0;
+    #0.5 clk = 1'b1; 
+  end
   //!SECTION
 
 

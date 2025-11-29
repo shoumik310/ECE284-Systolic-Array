@@ -9,8 +9,10 @@ module corelet (
 
     i_xmem_data,
     i_pmem_data,
+
     o_sfp_out,
     mode,
+    o_ofifo_out,
     o_ofifo_valid
 );
 
@@ -31,14 +33,13 @@ module corelet (
   input  [col*psum_bw-1:0] i_pmem_data; // 128-bit Input from PMEM (for Accumulation)
 
   output [col*psum_bw-1:0] o_sfp_out;   // 128-bit Output from SFP
+  output [col*psum_bw-1:0] o_ofifo_out;   // 128-bit Output from OFIFO
   output o_ofifo_valid;
 
   // Internal Wires
   wire [row*bw-1:0] l0_out;
   wire [col*psum_bw-1:0] array_out_s;
   wire [col-1:0] array_valid;
-  wire [col*psum_bw-1:0] fifo_out_wire; // New wire: OFIFO -> SFP
-  wire [col*psum_bw-1:0] sfp_out_wire;
   
   // --------------------------------------------------------
   // L0 Buffer
@@ -75,7 +76,7 @@ module corelet (
       .clk(clk),
       .reset(reset),
       .in(array_out_s),     // Input from MAC Array
-      .out(fifo_out_wire),  // Output to SFP
+      .out(o_ofifo_out),  // Output to SFP
       .rd(ofifo_rd),        // Controlled by TB to feed SFP
       .wr(array_valid),
       .o_full(),
@@ -86,16 +87,12 @@ module corelet (
   // --------------------------------------------------------
   // SFP (Accumulation & ReLU)
   // --------------------------------------------------------
-  sfp #(.col(col), .psum_bw(psum_bw)) sfp_inst (
+  sfp_8lane #(.col(col), .psum_bw(psum_bw)) sfp_inst (
       .clk(clk),
       .reset(reset),
-      .data_in(fifo_out_wire), // Reads from OFIFO
-      .acc_in(i_pmem_data),    // Reads from PMEM (Old Psum)
+      .data_in(i_pmem_data), 
       .acc_en(sfp_acc_en),
-      .relu_en(1'b0),       
-      .data_out(sfp_out_wire)  // Result to PMEM (Writeback) and Output
+      .data_out(o_sfp_out)  
   );
-
-  assign o_sfp_out = sfp_out_wire;
 
 endmodule

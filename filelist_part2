@@ -19,4 +19,5 @@
 ./sram/sram_32b_w2048.v
 
 ./tb/core_part2_tb.v
-./sfp.v
+./sfp/sfp_8lane.v
+./sfp/sfp_lane.v

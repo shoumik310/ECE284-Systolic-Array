@@ -26,7 +26,7 @@ module l0 (clk, in, out, rd, wr, o_full, reset, o_ready);
   // o_ready is high only if there is room in ALL rows (none are full)
   assign o_ready = !o_full; 
 
-
+  generate
   for (i=0; i<row ; i=i+1) begin : row_num
       fifo_depth64 #(.bw(bw)) fifo_instance (
         .rd_clk(clk),
@@ -40,7 +40,7 @@ module l0 (clk, in, out, rd, wr, o_full, reset, o_ready);
         .reset(reset)
       );
   end
-
+  endgenerate
 
   always @ (posedge clk) begin
    if (reset) begin

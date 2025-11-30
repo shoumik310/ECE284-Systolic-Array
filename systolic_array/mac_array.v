@@ -26,6 +26,7 @@ module mac_array (clk, reset, out_s, in_w, in_n, inst_w, valid);
   assign temp[psum_bw*col*1-1:psum_bw*col*0] = 0;
   assign valid = valid_temp[row*col-1:row*col-8];
 
+  generate
   for (i=1; i < row+1 ; i=i+1) begin : row_num
       mac_row #(.bw(bw), .psum_bw(psum_bw)) mac_row_instance (
          .clk(clk),
@@ -36,6 +37,7 @@ module mac_array (clk, reset, out_s, in_w, in_n, inst_w, valid);
          .valid(valid_temp[col*i-1:col*(i-1)]),
 	 .out_s(temp[psum_bw*col*(i+1)-1:psum_bw*col*(i)]));
   end
+  endgenerate
 
   always @ (posedge clk) begin
 

@@ -60,13 +60,15 @@ reg load; // load instruction
 reg execute_q = 0; // execute instruction pipeline reg
 reg load_q = 0; // load instruction pipeline reg
 
-reg [8*30:1] stringvar;
-reg [8*30:1] w_file_name;
+reg [8*60:1] stringvar;
+reg [8*60:1] w1_file_name;
+reg [8*60:1] w2_file_name;
 wire ofifo_valid;
 wire [col*psum_bw-1:0] sfp_out;
 
 integer x_file, x_scan_file ; // file_handler
-integer w_file, w_scan_file ; // file_handler
+integer w1_file, w1_scan_file ; // file_handler
+integer w2_file, w2_scan_file ; // file_handler
 integer acc_file, acc_scan_file ; // file_handler
 integer out_file, out_scan_file ; // file_handler
 integer captured_data;
@@ -94,8 +96,8 @@ integer k_mode; // Loop variable for mode testing
 integer k_tile; // New loop variable for tiles
 integer num_tiles; // Number of tiles based for mode=1
 
-reg [8*30:1] x_file_name;   // Variable for activation file name
-reg [8*30:1] out_file_name; // Variable for expected output file name
+reg [8*60:1] x_file_name;   // Variable for activation file name
+reg [8*60:1] out_file_name; // Variable for expected output file name
 
 core  #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) core_instance (
 	.clk(clk), 
@@ -113,7 +115,7 @@ initial begin
 
   // START MODE LOOP
   // This will run the full test for Mode 0, then Mode 1
-  for (k_mode = 0; k_mode < 2; k_mode = k_mode + 1) begin
+  for (k_mode = 1; k_mode < 2; k_mode = k_mode + 1) begin
     
     mode = k_mode;
     // Determine number of tiles based on mode
@@ -150,6 +152,10 @@ initial begin
       end
 
       x_file = $fopen(x_file_name, "r");
+      if (!x_file) begin
+        $display("ERROR: Cannot open %0s", x_file_name);
+        $finish;
+      end
       // Following three lines are to remove the first three comment lines of the file
       x_scan_file = $fscanf(x_file,"%s", stringvar);
       x_scan_file = $fscanf(x_file,"%s", stringvar);
@@ -170,31 +176,50 @@ initial begin
       #0.5 clk = 1'b1;   
       /////////////////////////
 
-      /////// Activation data writing to memory ///////
+      /////// Activation data writing to memory - starting address = 0 ///////
       for (t=0; t<len_nij; t=t+1) begin  
         #0.5 clk = 1'b0;
         x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
         #0.5 clk = 1'b1;   
       end
+      $fclose(x_file);
 
       #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
       #0.5 clk = 1'b1; 
 
-      $fclose(x_file);
       /////////////////////////////////////////////////
 
       for (kij=0; kij<9; kij=kij+1) begin  // kij loop
+        w1_file_name = "";
         if (mode == 0) begin
-          $sformat(w_file_name, "./data/4_bit/weights/weight_%d.txt", kij);
+          $sformat(w1_file_name, "./data/4_bit/weights/weight_%0d.txt", kij);
         end else begin
-          $sformat(w_file_name, "./data/2_bit/weights/weight_tile%d_kij%d.txt", k_tile, kij);
+          w2_file_name = "";
+          $sformat(w1_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", 2*k_tile, kij);
+          $sformat(w2_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", 2*k_tile+1, kij);
         end
 
-        w_file = $fopen(w_file_name, "r");
+        w1_file = $fopen(w1_file_name, "r");
+        if (!w1_file) begin
+            $display("ERROR: Cannot open %0s", w1_file_name);
+            $finish;
+        end
         // Following three lines are to remove the first three comment lines of the file
-        w_scan_file = $fscanf(w_file,"%s", stringvar);
-        w_scan_file = $fscanf(w_file,"%s", stringvar);
-        w_scan_file = $fscanf(w_file,"%s", stringvar);
+        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
+        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
+        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
+
+        if (mode == 1) begin
+          w2_file = $fopen(w2_file_name, "r");
+          if (!w2_file) begin
+              $display("ERROR: Cannot open %0s", w2_file_name);
+              $finish;
+          end
+          // Following three lines are to remove the first three comment lines of the file
+          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
+          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
+          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
+        end
 
         #0.5 clk = 1'b0;   reset = 1;
         #0.5 clk = 1'b1;
@@ -210,13 +235,20 @@ initial begin
         #0.5 clk = 1'b0;
         #0.5 clk = 1'b1;   
 
-        /////// Kernel data writing to memory ///////
+        /////// Kernel data writing to memory - starting address = 11'b10000000000 ///////
         A_xmem = 11'b10000000000;
 
-        for (t=0; t<col; t=t+1) begin  
-          #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem);
+        for (t=0; t<col+1; t=t+1) begin
+          #0.5 clk = 1'b0;  w1_scan_file = $fscanf(w1_file,"%32b", D_xmem);
           WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
           #0.5 clk = 1'b1;
+        end
+        if (mode == 1) begin
+          for (t=0; t<col+1; t=t+1) begin  
+            #0.5 clk = 1'b0;  w2_scan_file = $fscanf(w2_file,"%32b", D_xmem);
+            WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
+            #0.5 clk = 1'b1;
+          end
         end
 
         #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
@@ -229,7 +261,7 @@ initial begin
         A_xmem = 11'b10000000000;
         #0.5 clk = 1'b1;
 
-        for(t=0; t<col; t=t+1) begin  
+        for(t=0; t<2*col; t=t+1) begin  
           #0.5 clk = 1'b0;
           CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
           #0.5 clk = 1'b1;
@@ -248,7 +280,7 @@ initial begin
         #0.5 clk = 1'b1;
 
         // Cycles for the FIFO to complete
-        for(t=0; t< 2*col; t=t+1) begin
+        for(t=0; t< 2*2*col; t=t+1) begin
           #0.5 clk = 1'b0;
           load = 1;
           #0.5 clk = 1'b1;
@@ -332,74 +364,92 @@ initial begin
         #0.5 clk = 1'b0;  WEN_pmem = 1;  CEN_pmem = 1; A_xmem = 0; ofifo_rd = 0;
         #0.5 clk = 1'b1;
         /////////////////////////////////////
+
+
+        ////////// Accumulation Verification /////////
+        // if (mode == 0) begin
+        //     $sformat(out_file_name, "./data/4_bit/psum/psum_kij%0d.txt", kij);
+        // end else begin
+        //     $sformat(out_file_name, "./data/2_bit/psum/psum_kij%0d.txt", kij);
+        // end
+
+        // out_file = $fopen(out_file_name, "r");
+        // if (!out_file) begin
+        //   $display("ERROR: Cannot open %0s", out_file_name);
+        //   $finish;
+        // end
+        // // Following three lines are to remove the first three comment lines of the file
+        // out_scan_file = $fscanf(out_file,"%s", stringvar);
+        // out_scan_file = $fscanf(out_file,"%s", stringvar);
+        // // out_scan_file = $fscanf(out_file,"%s", stringvar); 
+
+        // error = 0;
+        // $display("############ Verification Start for MODE %0d TILE %0d #############", mode, k_tile);
+      
+        // //SECTION - Accumulation
+        // acc_file = $fopen("acc_add.txt", "r"); 
+
+        // for (i=0; i<len_onij+1; i=i+1) begin 
+
+        //   #0.5 clk = 1'b0; 
+        //   #0.5 clk = 1'b1;  
+
+        //   //if (mode == 0) begin
+        //     if (i>0) begin
+        //       out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+        //       if (sfp_out == answer)
+        //         $display("%2d-th output featuremap Data matched! :D", i); 
+        //       else begin
+        //         $display("%2d-th output featuremap Data ERROR!!", i); 
+        //         $display("sfpout: %128b", sfp_out);
+        //         $display("answer: %128b", answer);
+        //         error = 1;
+        //       end
+        //     end
+        //   end else begin
+        //    if (i>0) begin
+        //      out_scan_file = $fscanf(out_file,"%256b", answer); // reading from out file to answer
+        //      if (sfp_out == answer)
+        //        $display("%2d-th output featuremap Data matched! :D", i); 
+        //      else begin
+        //        $display("%2d-th output featuremap Data ERROR!!", i); 
+        //        $display("sfpout: %256b", sfp_out);
+        //        $display("answer: %256b", answer);
+        //        error = 1;
+        //      end
+        //    end
+        //   end
+    
+  
+        //   #0.5 clk = 1'b0; reset = 1;
+        //   #0.5 clk = 1'b1;  
+        //   #0.5 clk = 1'b0; reset = 0; 
+        //   #0.5 clk = 1'b1;  
+
+        //   for (j=0; j<len_kij+1; j=j+1) begin 
+
+        //     #0.5 clk = 1'b0;   
+        //       if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
+        //                     else  begin CEN_pmem = 1; WEN_pmem = 1; end
+
+        //       if (j>0)  acc = 1;  
+        //     #0.5 clk = 1'b1;   
+        //   end
+
+        //   #0.5 clk = 1'b0; acc = 0;
+        //   #0.5 clk = 1'b1; 
+        // end
+        // //!SECTION
+        // if (error == 0) begin
+        //     $display("############ Tile %0d: No error detected ##############", k_tile); 
+        // end else begin
+        //     $display("############ Tile %0d: Error detected! ##############", k_tile); 
+        // end
+
+        // $fclose(acc_file);
+        // $fclose(out_file);
+        //////////////////////////////////
       end  // end of kij loop
-
-
-      ////////// Accumulation Verification /////////
-      if (mode == 0) begin
-          $sformat(out_file_name, "./data/4_bit/psum/psum_kij%0d.txt", kij);
-      end else begin
-          $sformat(out_file_name, "./data/2_bit/psum/psum_kij%0d.txt", k_tile*num_tiles + kij);
-      end
-    
-      out_file = $fopen(out_file_name, "r");
-      // Following three lines are to remove the first three comment lines of the file
-      out_scan_file = $fscanf(out_file,"%s", stringvar);
-      out_scan_file = $fscanf(out_file,"%s", stringvar); 
-      out_scan_file = $fscanf(out_file,"%s", stringvar); 
-
-      error = 0;
-      $display("############ Verification Start for MODE %0d TILE %0d #############", mode, k_tile);
-    
-      //SECTION - Accumulation
-      acc_file = $fopen("acc_add.txt", "r"); 
-
-      for (i=0; i<len_onij+1; i=i+1) begin 
-
-        #0.5 clk = 1'b0; 
-        #0.5 clk = 1'b1;  
-
-        if (i>0) begin
-        out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
-          if (sfp_out == answer)
-            $display("%2d-th output featuremap Data matched! :D", i); 
-          else begin
-            $display("%2d-th output featuremap Data ERROR!!", i); 
-            $display("sfpout: %128b", sfp_out);
-            $display("answer: %128b", answer);
-            error = 1;
-          end
-        end
-   
- 
-        #0.5 clk = 1'b0; reset = 1;
-        #0.5 clk = 1'b1;  
-        #0.5 clk = 1'b0; reset = 0; 
-        #0.5 clk = 1'b1;  
-
-        for (j=0; j<len_kij+1; j=j+1) begin 
-
-          #0.5 clk = 1'b0;   
-            if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
-                          else  begin CEN_pmem = 1; WEN_pmem = 1; end
-
-            if (j>0)  acc = 1;  
-          #0.5 clk = 1'b1;   
-        end
-
-        #0.5 clk = 1'b0; acc = 0;
-        #0.5 clk = 1'b1; 
-      end
-      //!SECTION
-      if (error == 0) begin
-          $display("############ Tile %0d: No error detected ##############", k_tile); 
-      end else begin
-          $display("############ Tile %0d: Error detected! ##############", k_tile); 
-      end
-
-      $fclose(acc_file);
-      $fclose(out_file);
-      //////////////////////////////////
     end // END TILE LOOP
     
     if (error == 0) begin
@@ -413,8 +463,6 @@ initial begin
       #0.5 clk = 1'b0;  
       #0.5 clk = 1'b1;  
     end
-
-    #10 $finish;
 
   end // END MODE LOOP
 

@@ -19,7 +19,7 @@ reg signed [bw-1:0] a_q; // activation
 reg signed [2*bw-1:0] b_q; // weight
 reg signed [psum_bw-1:0] c_q;
 reg load_ready_q;
-reg cnt;
+reg [1:0] cnt;
 
 reg [psum_bw-1:0] tile_out_s;
 wire signed [2*psum_bw-1:0] mac_out;
@@ -84,12 +84,10 @@ always @ (posedge clk) begin
                 cnt <= cnt + 1'b1;
                 if (cnt > 1) begin
                     load_ready_q <= 1'b0;
+                    inst_q[0] <= inst_w[0];
+                    cnt <= 0;
                 end
             end
-        end
-
-        if (load_ready_q == 1'b0) begin
-            inst_q[0] <= inst_w[0];
         end
     end
 end

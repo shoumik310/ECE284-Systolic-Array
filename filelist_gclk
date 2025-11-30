@@ -2,7 +2,7 @@
 ./core/corelet.v
 ./core/controller.v
 
-./systolic_array/mac.v
+./systolic_array/gated_clock/mac_d_gated.v
 ./systolic_array/gated_clock/mac_tile_gclk.v
 ./systolic_array/gated_clock/mac_row.v
 ./systolic_array/mac_array.v

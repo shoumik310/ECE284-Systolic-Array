@@ -169,10 +169,8 @@ task automatic accumulate_output;
             
             // Term 2: + (int(kij/ki_dim)*a_pad_ni_dim + kij%ki_dim)
             index2 = index2 + (kij / k) * n + (kij % k);
-
-            // index2 = index2 -1;
             
-            $display("index: %0d, kij: %d, psum %b", index2,kij, calc_psum[kij][index2][col-1]);
+            // $display("index: %0d, kij: %d, psum %b", index2,kij, calc_psum[kij][index2][col-1]);
             
             for (c = 0; c < col; c = c + 1) begin
               calc_output[o_nij][c] = calc_output[o_nij][c] + calc_psum[kij][index2][c];
@@ -183,7 +181,7 @@ task automatic accumulate_output;
         for (c = 0; c < col; c = c + 1) begin
           calc_output[o_nij][c] = calc_output[o_nij][c][psum_bw-1] == 1'b0 ? calc_output[o_nij][c] : 0;
         end
-        $display("onij: %0d: %b", o_nij, {calc_output[o_nij][7], calc_output[o_nij][6], calc_output[o_nij][5], calc_output[o_nij][4], calc_output[o_nij][3], calc_output[o_nij][2], calc_output[o_nij][1], calc_output[o_nij][0]});
+        // $display("onij: %0d: %b", o_nij, {calc_output[o_nij][7], calc_output[o_nij][6], calc_output[o_nij][5], calc_output[o_nij][4], calc_output[o_nij][3], calc_output[o_nij][2], calc_output[o_nij][1], calc_output[o_nij][0]});
     end
 endtask
 

@@ -1,6 +1,5 @@
 ./core/core.v
 ./core/corelet.v
-./core/controller.v
 
 ./systolic_array/mac.v
 ./systolic_array/mac_tile.v

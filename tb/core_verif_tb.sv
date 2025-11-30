@@ -12,9 +12,9 @@ parameter col = 8;
 parameter row = 8;
 parameter len_nij = 64;
 
-parameter n = 8; //feature map size
-parameter k = 3; //kernel size
-parameter s = 1; //stride
+parameter input_size = 8; //feature map size
+parameter kernel_size = 3; //kernel size
+parameter stride = 1; //stride
 
 reg clk = 0;
 reg reset = 1;
@@ -64,17 +64,14 @@ reg load; // load instruction
 reg execute_q = 0; // execute instruction pipeline reg
 reg load_q = 0; // load instruction pipeline reg
 
-reg [8*30:1] stringvar;
-reg [8*30:1] w_file_name;
 wire ofifo_valid;
 wire [col*psum_bw-1:0] sfp_out;
 
-integer x_file, x_scan_file ; // file_handler
-integer w_file, w_scan_file ; // file_handler
-integer acc_file, acc_scan_file ; // file_handler
-integer out_file, out_scan_file ; // file_handler
+string out_file_name;
+integer out_file ; // file_handler
+integer acc_file, acc_scan_file;
 integer captured_data; 
-integer t, i, j, k, kij;
+integer t, i, j, kij;
 integer error;
 
 // Randomly generated reference data
@@ -107,35 +104,51 @@ core  #(.bw(bw), .col(col), .row(row)) core_instance (
         .sfp_out(sfp_out), 
 	.reset(reset)); 
 
+task create_output_file;
+  input string file_name;
+  output integer file;
+  
+  file = $fopen(file_name, "w");
+  $fdisplay(file,"");
+  $fdisplay(file,"");
+  $fdisplay(file,"");
+
+endtask
+
 task calculate_kij_psum;
-    input kij;
+    input integer kij_val;
     
     integer r,c,n;
     reg [bw-1:0] act_val;
     reg [bw-1:0] weight_val;
     reg [psum_bw-1:0] psum;
     reg [2*bw:0] prod; 
-    
-    psum = 0; 
+
+    out_file_name = $sformatf("./gen/outputs/genOutput_%0d.txt", kij_val);
+    create_output_file(out_file_name, out_file);
     
     for(n = 0; n < len_nij; n = n + 1 ) begin
       for(c = 0; c < col; c = c + 1 ) begin
+        psum = 0;
         for (r = 0; r < row; r = r + 1) begin
-            act_val = act_val[n][r];
-            weight_val = weight_block[c][r];
+            act_val = gen_x[n][r];
+            weight_val = gen_w[c][r];
           
-            mac_result = $signed({{(bw){1'b0}}, activation_val}) * $signed({{(bw){weight_val[bw-1]}}, weight_val});
-            psum = $signed(psum) + $signed({{(psum_bw - 2*bw){mac_result[2*bw-1]}}, mac_result});
+            prod = $signed({{(bw){1'b0}}, act_val}) * $signed({{(bw){weight_val[bw-1]}}, weight_val});
+            psum = $signed(psum) + $signed({{(psum_bw - 2*bw){prod[2*bw-1]}}, prod});
         end
-        calc_psum[kij][n][c];
+        calc_psum[kij_val][n][c] = psum;
       end 
+      $fdisplay(out_file, "%b", {calc_psum[kij_val][n][7], calc_psum[kij_val][n][6], calc_psum[kij_val][n][5], calc_psum[kij_val][n][4], calc_psum[kij_val][n][3], calc_psum[kij_val][n][2], calc_psum[kij_val][n][1], calc_psum[kij_val][n][0]});
     end 
+
+    $fclose(out_file);
 endtask
 
-task accumulate_output;
-    input n; //feature map size
-    input k; // kernel size
-    input s; //stride
+task automatic accumulate_output;
+    input integer n; //feature map size
+    input integer k; // kernel size
+    input integer s; //stride
 
     int o_nij, kij, c;
     int index2;
@@ -146,6 +159,7 @@ task accumulate_output;
             calc_output[o_nij][c] = 0; 
         end
     end
+    
 
     for (o_nij = 0; o_nij < len_onij; o_nij = o_nij + 1) begin
         for (kij = 0; kij < len_kij; kij = kij + 1) begin
@@ -155,11 +169,21 @@ task accumulate_output;
             
             // Term 2: + (int(kij/ki_dim)*a_pad_ni_dim + kij%ki_dim)
             index2 = index2 + (kij / k) * n + (kij % k);
+
+            // index2 = index2 -1;
+            
+            $display("index: %0d, kij: %d, psum %b", index2,kij, calc_psum[kij][index2][col-1]);
             
             for (c = 0; c < col; c = c + 1) begin
-                calc_output[o_nij][c] = calc_output[o_nij][c] + calc_psum[kij][c][index2];
+              calc_output[o_nij][c] = calc_output[o_nij][c] + calc_psum[kij][index2][c];
             end
-        end 
+          end 
+        
+        // Relu
+        for (c = 0; c < col; c = c + 1) begin
+          calc_output[o_nij][c] = calc_output[o_nij][c][psum_bw-1] == 1'b0 ? calc_output[o_nij][c] : 0;
+        end
+        $display("onij: %0d: %b", o_nij, {calc_output[o_nij][7], calc_output[o_nij][6], calc_output[o_nij][5], calc_output[o_nij][4], calc_output[o_nij][3], calc_output[o_nij][2], calc_output[o_nij][1], calc_output[o_nij][0]});
     end
 endtask
 
@@ -181,12 +205,6 @@ initial begin
   $dumpfile("core_tb.vcd");
   $dumpvars(0,core_tb);
 
-  x_file = $fopen("activation.txt", "r");
-  // Following three lines are to remove the first three comment lines of the file
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-
   //////// Reset /////////
   #0.5 clk = 1'b0;   reset = 1;
   #0.5 clk = 1'b1; 
@@ -203,18 +221,21 @@ initial begin
   #0.5 clk = 1'b1;   
   /////////////////////////
 
+  create_output_file("./gen/genActivation.txt", out_file);
+
   /////// Activation data writing to memory ///////
 
   $display("--- Starting Random Activation Generation ---");
   for(i = 0; i<len_nij; i++) begin
     for(j=0; j<row; j++) begin
-      gen_x[i][j] = $urandom_range((1<<BW)-1, 0);
+      gen_x[i][j] = $urandom_range((1<<bw)-1, 0);
     end
   end
 
   for (t=0; t<len_nij; t=t+1) begin  
     #0.5 clk = 1'b0; 
-    D_xmem = {gen_x[t][8], gen_x[t][7], gen_x[t][6], gen_x[t][5], gen_x[t][4], gen_x[t][3], gen_x[t][2], gen_x[t][1], gen_x[t][0]};
+    D_xmem = {gen_x[t][7], gen_x[t][6], gen_x[t][5], gen_x[t][4], gen_x[t][3], gen_x[t][2], gen_x[t][1], gen_x[t][0]};
+    $fdisplay(out_file, "%b", D_xmem);
     WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
     #0.5 clk = 1'b1;   
   end
@@ -222,70 +243,58 @@ initial begin
   #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
   #0.5 clk = 1'b1; 
 
-  $fclose(x_file);
+  $fclose(out_file);
   /////////////////////////////////////////////////
 
   A_pmem= 11'b00000000001;
   for (kij=0; kij<9; kij=kij+1) begin  // kij loop
 
-    case(kij)
-     0: w_file_name = "./weights/weight_0.txt";
-     1: w_file_name = "./weights/weight_1.txt";
-     2: w_file_name = "./weights/weight_2.txt";
-     3: w_file_name = "./weights/weight_3.txt";
-     4: w_file_name = "./weights/weight_4.txt";
-     5: w_file_name = "./weights/weight_5.txt";
-     6: w_file_name = "./weights/weight_6.txt";
-     7: w_file_name = "./weights/weight_7.txt";
-     8: w_file_name = "./weights/weight_7.txt";
-    endcase
+    out_file_name = $sformatf("./gen/weights/genWeight_%0d.txt", kij);
+    create_output_file(out_file_name, out_file);    
     
-    // w_file_name = "weight.txt";
-
-    w_file = $fopen(w_file_name, "r");
-    // Following three lines are to remove the first three comment lines of the file
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-
     #0.5 clk = 1'b0;   reset = 1;
     #0.5 clk = 1'b1; 
-
+    
     for (i=0; i<10 ; i=i+1) begin
       #0.5 clk = 1'b0;
       #0.5 clk = 1'b1;  
     end
-
+    
     #0.5 clk = 1'b0;   reset = 0;
     #0.5 clk = 1'b1; 
-
+    
     #0.5 clk = 1'b0;   
     #0.5 clk = 1'b1;   
-
-
+    
+    
     /////// Kernel data writing to memory ///////
-
-    $display("--- Starting Random Weight Generation for Kij %d ---",kij);
+    
+    $display("--- Starting Random Weight Generation for Kij %0d ---",kij);
     for(i = 0; i<col; i++) begin
       for(j=0; j<row; j++) begin
-        gen_w[i][j] = $random;
+        // gen_w[i][j] = $random; //Generates positive and negative values
+        // gen_w[i][j] = $urandom_range((1<<(bw-1))-1, 0); // Generates only positive values
+        gen_w[i][j] = $urandom_range((1<<(bw))-1, 0); // Generates only positive values - but if msb is 1 itll be considered negative
       end
     end
-
+    
     A_xmem = 11'b10000000000;
-
+    
     for (t=0; t<col; t=t+1) begin  
       #0.5 clk = 1'b0; 
-      D_xmem = {gen_w[t][8], gen_w[t][7], gen_w[t][6], gen_w[t][5], gen_w[t][4], gen_w[t][3], gen_w[t][2], gen_w[t][1], gen_w[t][0]};
+      D_xmem = {gen_w[t][7], gen_w[t][6], gen_w[t][5], gen_w[t][4], gen_w[t][3], gen_w[t][2], gen_w[t][1], gen_w[t][0]};
+      $fdisplay(out_file, "%b", D_xmem);
       WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
       #0.5 clk = 1'b1;  
     end
+    $fclose(out_file);
 
     // Calculate all psums for current kij
     calculate_kij_psum(kij);
 
     #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
     #0.5 clk = 1'b1; 
+
     /////////////////////////////////////
 
 
@@ -415,19 +424,15 @@ initial begin
 
 
   ////////// Accumulation /////////
-  out_file = $fopen("./outputs/output_accumulated.txt", "r");  
-
-  // Following three lines are to remove the first three comment lines of the file
-  out_scan_file = $fgets(stringvar, out_file); 
-  out_scan_file = $fgets(stringvar, out_file); 
-  out_scan_file = $fgets(stringvar, out_file); 
+  
+  create_output_file("./gen/genOutput_acc.txt", out_file);
 
   error = 0;
 
   $display("############ Verification Start during accumulation #############"); 
   
   // Accumulate outputs for verification
-  accumulate_output(n, k, s);
+  accumulate_output(input_size, kernel_size, stride);
   
   //SECTION - Accumulation
   acc_file = $fopen("acc_add.txt", "r"); 
@@ -438,7 +443,8 @@ initial begin
     #0.5 clk = 1'b1;  
 
     if (i>0) begin
-      answer = {calc_output[t][8], calc_output[t][7], calc_output[t][6], calc_output[t][5], calc_output[t][4], calc_output[t][3], calc_output[t][2], calc_output[t][1], calc_output[t][0]};
+      answer = {calc_output[i-1][7], calc_output[i-1][6], calc_output[i-1][5], calc_output[i-1][4], calc_output[i-1][3], calc_output[i-1][2], calc_output[i-1][1], calc_output[i-1][0]};
+      $fdisplay(out_file, "%b", answer);
        if (sfp_out == answer)
          $display("%2d-th output featuremap Data matched! :D", i); 
        else begin
@@ -478,6 +484,7 @@ initial begin
   end
 
   $fclose(acc_file);
+  $fclose(out_file);
   //////////////////////////////////
 
   for (t=0; t<10; t=t+1) begin  

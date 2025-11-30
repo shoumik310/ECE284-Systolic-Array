@@ -117,9 +117,9 @@ initial begin
 
   x_file = $fopen("activation.txt", "r");
   // Following three lines are to remove the first three comment lines of the file
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
-  x_scan_file = $fscanf(x_file,"%s", stringvar);
+  x_scan_file = $fgets(stringvar, x_file);
+  x_scan_file = $fgets(stringvar, x_file);
+  x_scan_file = $fgets(stringvar, x_file);
 
   //////// Reset /////////
   #0.5 clk = 1'b0;   reset = 1;
@@ -152,25 +152,27 @@ initial begin
   A_pmem= 11'b00000000001;
   for (kij=0; kij<9; kij=kij+1) begin  // kij loop
 
-    case(kij)
-     0: w_file_name = "./weights/weight_0.txt";
-     1: w_file_name = "./weights/weight_1.txt";
-     2: w_file_name = "./weights/weight_2.txt";
-     3: w_file_name = "./weights/weight_3.txt";
-     4: w_file_name = "./weights/weight_4.txt";
-     5: w_file_name = "./weights/weight_5.txt";
-     6: w_file_name = "./weights/weight_6.txt";
-     7: w_file_name = "./weights/weight_7.txt";
-     8: w_file_name = "./weights/weight_7.txt";
-    endcase
+    // case(kij)
+    //  0: w_file_name = "./weights/weight_0.txt";
+    //  1: w_file_name = "./weights/weight_1.txt";
+    //  2: w_file_name = "./weights/weight_2.txt";
+    //  3: w_file_name = "./weights/weight_3.txt";
+    //  4: w_file_name = "./weights/weight_4.txt";
+    //  5: w_file_name = "./weights/weight_5.txt";
+    //  6: w_file_name = "./weights/weight_6.txt";
+    //  7: w_file_name = "./weights/weight_7.txt";
+    //  8: w_file_name = "./weights/weight_8.txt";
+    // endcase
+
+    $sformat(w_file_name, "./weights/weight_%0d.txt", kij);
     
     // w_file_name = "weight.txt";
 
     w_file = $fopen(w_file_name, "r");
     // Following three lines are to remove the first three comment lines of the file
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
-    w_scan_file = $fscanf(w_file,"%s", stringvar);
+    w_scan_file = $fgets(stringvar, w_file);
+    w_scan_file = $fgets(stringvar, w_file);
+    w_scan_file = $fgets(stringvar, w_file);
 
     #0.5 clk = 1'b0;   reset = 1;
     #0.5 clk = 1'b1; 
@@ -216,7 +218,10 @@ initial begin
     #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
     #0.5 clk = 1'b1; 
 
-    #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
+    #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0;
+    #0.5 clk = 1'b1;
+
+    #0.5 clk = 1'b0; l0_wr = 0;
     #0.5 clk = 1'b1; 
 
     /////////////////////////////////////
@@ -258,7 +263,11 @@ initial begin
     #0.5 clk = 1'b1;
 
     for(t=0; t<len_nij; t=t+1) begin  
-      #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+      #0.5 clk = 1'b0; CEN_xmem = 0; 
+      if (t>0) begin
+        A_xmem = A_xmem + 1;
+        l0_wr = 1;      
+      end      
       #0.5 clk = 1'b1;  
     end
 
@@ -267,16 +276,14 @@ initial begin
 
     #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
     #0.5 clk = 1'b1; 
+
     /////////////////////////////////////
 
 
 
     /////// Execution ///////
     // Assuming l0 direcly pushes into PE
-    #0.5 clk = 1'b0; l0_rd = 1;
-    #0.5 clk = 1'b1;
-
-    #0.5 clk = 1'b0; execute = 1;// Cycle for read signal to propogate
+    #0.5 clk = 1'b0; l0_rd = 1; execute = 1;
     #0.5 clk = 1'b1;
 
     // Cycles for the FIFO to complete
@@ -331,14 +338,13 @@ initial begin
 
   // Following three lines are to remove the first three comment lines of the file
   out_scan_file = $fgets(stringvar, out_file); 
-  // out_scan_file = $fgets(stringvar, out_file); 
-  // out_scan_file = $fgets(stringvar, out_file); 
+  out_scan_file = $fgets(stringvar, out_file); 
+  out_scan_file = $fgets(stringvar, out_file); 
 
   error = 0;
 
   $display("############ Verification Start during accumulation #############"); 
   
-  // TODO: Evaluate without this
   //SECTION - Accumulation
   acc_file = $fopen("acc_add.txt", "r"); 
 

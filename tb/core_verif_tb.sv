@@ -313,7 +313,10 @@ initial begin
     #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
     #0.5 clk = 1'b1; 
 
-    #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
+    #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0;
+    #0.5 clk = 1'b1; 
+
+    #0.5 clk = 1'b0; l0_wr = 0;
     #0.5 clk = 1'b1; 
 
     /////////////////////////////////////
@@ -336,7 +339,7 @@ initial begin
   
 
     ////// provide some intermission to clear up the kernel loading ///
-    #0.5 clk = 1'b0;  load = 0; l0_rd = 0;
+    #0.5 clk = 1'b0;  load = 0;  l0_rd = 0;
     #0.5 clk = 1'b1;  
   
 
@@ -355,7 +358,11 @@ initial begin
     #0.5 clk = 1'b1;
 
     for(t=0; t<len_nij; t=t+1) begin  
-      #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+      #0.5 clk = 1'b0; CEN_xmem = 0; 
+      if (t>0) begin 
+        A_xmem = A_xmem + 1; 
+        l0_wr = 1;      
+      end
       #0.5 clk = 1'b1;  
     end
 
@@ -370,10 +377,7 @@ initial begin
 
     /////// Execution ///////
     // Assuming l0 direcly pushes into PE
-    #0.5 clk = 1'b0; l0_rd = 1;
-    #0.5 clk = 1'b1;
-
-    #0.5 clk = 1'b0; execute = 1;// Cycle for read signal to propogate
+    #0.5 clk = 1'b0; l0_rd = 1; execute = 1;
     #0.5 clk = 1'b1;
 
     // Cycles for the FIFO to complete
@@ -445,8 +449,11 @@ initial begin
     if (i>0) begin
       answer = {calc_output[i-1][7], calc_output[i-1][6], calc_output[i-1][5], calc_output[i-1][4], calc_output[i-1][3], calc_output[i-1][2], calc_output[i-1][1], calc_output[i-1][0]};
       $fdisplay(out_file, "%b", answer);
-       if (sfp_out == answer)
+       if (sfp_out == answer) begin
          $display("%2d-th output featuremap Data matched! :D", i); 
+        //  $display("sfpout: %128b", sfp_out);
+        //  $display("answer: %128b", answer);
+       end
        else begin
          $display("%2d-th output featuremap Data ERROR!!", i); 
          $display("sfpout: %128b", sfp_out);

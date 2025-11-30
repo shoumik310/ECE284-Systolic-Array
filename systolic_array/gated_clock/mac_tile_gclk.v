@@ -4,6 +4,13 @@ module mac_tile_gclk (clk, out_s, in_w, out_e, in_n, inst_w, inst_e, reset);
 parameter bw = 4;
 parameter psum_bw = 16;
 
+// ALPHA:
+// POWER OPTIM #1:
+// GATES THE CLOCKS OF REGISTERS "b_q" and "laod_ready_q"
+// BOTH OF THESE REGSISTERS HAVE LOW DUTY CYCLES AND THE VALUES INSIDE NEED NOT BE RELOADED EVERY CYCLE
+// USING LATCH ENABLE TECHNIQUE TO INCREASE CLOCK SKEW RELATED GLITCH RESISTANCE OF THE GATED CLOCK
+//
+
 output [psum_bw-1:0] out_s;
 input  [bw-1:0] in_w;
 output [bw-1:0] out_e; 
@@ -30,7 +37,7 @@ reg latch_isnt_ld_en;
 // gated clock: only to be used on the weight register
 wire g_clk = clk & ( (latch_c_reset) | (latch_isnt_ld_en) );
 
-mac #(.bw(bw), .psum_bw(psum_bw)) mac_instance (
+mac_d_gated #(.bw(bw), .psum_bw(psum_bw)) mac_instance (
         .a(a_q), 
         .b(b_q),
         .c(c_q),

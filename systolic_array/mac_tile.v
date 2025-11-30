@@ -38,8 +38,12 @@ always @ (posedge clk) begin
         inst_q <= 2'b00;
         load_ready_q <= 1'b1;
         
-		a_q <= 4'bxxxx;
-		b_q <= 4'bxxxx;
+        // this is not eligible for synthesis:
+		// a_q <= 4'bxxxx;
+		// b_q <= 4'bxxxx;
+        // replaced with: 
+		a_q <= 4'b0;
+		b_q <= 4'b0;
 		c_q <= 4'b0000;
         
     end else begin

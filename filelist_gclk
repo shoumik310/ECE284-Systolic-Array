@@ -1,8 +1,7 @@
 ./core/core.v
 ./core/corelet.v
-./core/controller.v
 
-./systolic_array/mac.v
+./systolic_array/gated_clock/mac_d_gated.v
 ./systolic_array/gated_clock/mac_tile_gclk.v
 ./systolic_array/gated_clock/mac_row.v
 ./systolic_array/mac_array.v
@@ -19,4 +18,6 @@
 ./sram/sram_32b_w2048.v
 
 ./tb/core_tb.v
-./sfp.v
+
+./sfp/sfp_8lane.v
+./sfp/sfp_lane.v

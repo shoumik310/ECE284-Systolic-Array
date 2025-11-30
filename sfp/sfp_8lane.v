@@ -9,6 +9,7 @@ module sfp_8lane (clk, reset, data_in, acc_en, data_out);
   output [col*psum_bw-1:0] data_out;
 
   genvar i;
+  generate
   for (i = 0; i < col; i = i + 1) begin : sfp_col
     sfp_lane #(.psum_bw(psum_bw)) sfp_instance(
       .clk(clk),
@@ -18,5 +19,6 @@ module sfp_8lane (clk, reset, data_in, acc_en, data_out);
       .data_out(data_out[psum_bw*(i+1)-1:psum_bw*i])
     );
   end
+  endgenerate
 
 endmodule

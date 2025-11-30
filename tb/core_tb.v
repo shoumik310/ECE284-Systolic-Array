@@ -331,8 +331,8 @@ initial begin
 
   // Following three lines are to remove the first three comment lines of the file
   out_scan_file = $fgets(stringvar, out_file); 
-  out_scan_file = $fgets(stringvar, out_file); 
-  out_scan_file = $fgets(stringvar, out_file); 
+  // out_scan_file = $fgets(stringvar, out_file); 
+  // out_scan_file = $fgets(stringvar, out_file); 
 
   error = 0;
 

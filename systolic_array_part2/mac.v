@@ -4,7 +4,7 @@
 module mac (out, a, b, c);
 
 parameter bw = 4;
-parameter psum_bw = 16;
+parameter psum_bw = 8;
 
 parameter act_bw = 2; // activation bitwidth is 2 bits
 
@@ -14,7 +14,7 @@ input signed  [bw-1:0] b;  // weight
 input signed  [psum_bw-1:0] c;
 
 
-wire signed [2*(act_bw + bw):0] product;
+wire signed [psum_bw-1:0] product;
 wire signed [psum_bw-1:0] psum;
 wire signed [act_bw:0]   a_pad;
 

@@ -1,23 +1,22 @@
-./core/core.v
-./core/corelet.v
-./core/controller.v
+./part2/core/core.v
+./part2/core/corelet.v
 
-./systolic_array_part2/mac.v
-./systolic_array_part2/mac_tile.v
-./systolic_array_part2/mac_row.v
-./systolic_array_part2/mac_array.v
+./part2/systolic_array/mac.v
+./part2/systolic_array/mac_tile.v
+./part2/systolic_array/mac_row.v
+./part2/systolic_array/mac_array.v
 
-./fifos/fifo_depth64.v
-./fifos/fifo_depth8.v
-./fifos/fifo_mux_2_1.v
-./fifos/fifo_mux_8_1.v
-./fifos/fifo_mux_16_1.v
-./fifos/ofifo.v
-./fifos/l0.v
+./part2/fifos/fifo_depth64.v
+./part2/fifos/fifo_depth8.v
+./part2/fifos/fifo_mux_2_1.v
+./part2/fifos/fifo_mux_8_1.v
+./part2/fifos/fifo_mux_16_1.v
+./part2/fifos/ofifo.v
+./part2/fifos/l0.v
 
-./sram/sram_128b_w2048.v
-./sram/sram_32b_w2048.v
+./part2/sram/sram_128b_w2048.v
+./part2/sram/sram_32b_w2048.v
 
 ./tb/core_part2_tb.v
-./sfp/sfp_8lane.v
-./sfp/sfp_lane.v
+./part2/sfp/sfp_8lane.v
+./part2/sfp/sfp_lane.v

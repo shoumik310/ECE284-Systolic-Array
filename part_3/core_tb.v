@@ -15,7 +15,7 @@ parameter len_nij = 36;
 reg clk = 0;
 reg reset = 1;
 
-wire [34:0] inst_q; // 35 bits instruction bus
+wire [34:0] inst_q; // Updated: 35 bits instruction bus
 
 reg CEN_xmem = 1; // Activation SRAM chip enable
 reg WEN_xmem = 1; // Activation SRAM write enable
@@ -37,12 +37,16 @@ reg acc_q = 0;
 reg [bw*row-1:0] D_xmem; // Activation SRAM data input
 reg [bw*row-1:0] D_xmem_q = 0; 
 
+// NEW: Psum SRAM Data Input for Weight Loading
+reg [col*psum_bw-1:0] D_pmem; 
+reg [col*psum_bw-1:0] D_pmem_q = 0; 
+
 reg [psum_bw*col-1:0] answer; 
 
 reg ofifo_rd; // OFIFO read enable
 reg ofifo_rd_q = 0; 
 
-// IFIFO Controls (Used for Output Stationary Mode)
+// IFIFO Controls
 reg ififo_wr; 
 reg ififo_rd; 
 reg ififo_wr_q = 0; 
@@ -61,8 +65,9 @@ reg load;
 reg execute_q = 0; 
 reg load_q = 0; 
 
-// Mode Control
-reg mode; // 0: WS, 1: OS
+// NEW: Mode Control (0: WS, 1: OS)
+// CHANGE THIS TO TEST DIFFERENT MODES
+reg mode = 1; 
 reg mode_q = 0;
 
 reg [8*30:1] stringvar;
@@ -78,6 +83,7 @@ integer captured_data;
 integer t, i, j, k, kij;
 integer error;
 
+// Updated Instruction Bus Assignment
 assign inst_q[34]   = mode_q;
 assign inst_q[33]   = acc_q; 
 assign inst_q[32]   = CEN_pmem_q;
@@ -99,20 +105,22 @@ core  #(.bw(bw), .col(col), .row(row)) core_instance (
   .inst(inst_q),
   .ofifo_valid(ofifo_valid),
   .D_xmem(D_xmem_q), 
+  .D_pmem(D_pmem_q), // Connected new port
   .sfp_out(sfp_out), 
   .reset(reset)
 ); 
 
 
 initial begin 
-  // Select Mode Here
-  mode     = 0; // 0: Weight Stationary, 1: Output Stationary
-
   inst_w   = 0; 
   D_xmem   = 0;
+  D_pmem   = 0;
   CEN_xmem = 1; 
   WEN_xmem = 1; 
   A_xmem   = 0;
+  CEN_pmem = 1;
+  WEN_pmem = 1;
+  A_pmem   = 0;
   ofifo_rd = 0;
   ififo_wr = 0;
   ififo_rd = 0;
@@ -135,197 +143,215 @@ initial begin
 
   #0.5 clk = 1'b0;   reset = 0;
   #0.5 clk = 1'b1; 
+
   #0.5 clk = 1'b0;   
   #0.5 clk = 1'b1;   
   /////////////////////////
 
   if (mode == 0) begin
-    // =========================================================================
-    // WEIGHT STATIONARY (WS) SEQUENCE
-    // =========================================================================
-    $display("Starting Weight Stationary Test...");
+      // =========================================================================
+      // WEIGHT STATIONARY (WS) SEQUENCE
+      // =========================================================================
+      $display("Starting Weight Stationary Test...");
 
-    x_file = $fopen("activation.txt", "r");
-    x_scan_file = $fscanf(x_file,"%s", captured_data);
-    x_scan_file = $fscanf(x_file,"%s", captured_data);
-    x_scan_file = $fscanf(x_file,"%s", captured_data);
-
-    /////// Activation data writing to memory ///////
-    for (t=0; t<len_nij; t=t+1) begin  
-      #0.5 clk = 1'b0;  x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
-      #0.5 clk = 1'b1;   
-    end
-    #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
-    #0.5 clk = 1'b1; 
-    $fclose(x_file);
-
-    w_file_name = "weight.txt";
-    w_file = $fopen(w_file_name, "r");
-    w_scan_file = $fscanf(w_file,"%s", captured_data);
-    w_scan_file = $fscanf(w_file,"%s", captured_data);
-    w_scan_file = $fscanf(w_file,"%s", captured_data);
-
-    // KIJ Loop (Iterating over tiles)
-    for (kij=0; kij<9; kij=kij+1) begin  
-      
-      // 1. Load Weights to SRAM
-      A_xmem = 11'b10000000000;
-      for (t=0; t<col; t=t+1) begin  
-        #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
-        #0.5 clk = 1'b1;  
+      x_file = $fopen("activation.txt", "r");
+      if (x_file == 0) begin
+        $display("ERROR: activation.txt not found!");
+        $finish;
       end
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+
+      /////// Activation data writing to memory ///////
+      for (t=0; t<len_nij; t=t+1) begin  
+        #0.5 clk = 1'b0;  x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
+        #0.5 clk = 1'b1;   
+      end
+
       #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
       #0.5 clk = 1'b1; 
 
-      // 2. S_WS_LOAD_W: Load Weights Memory -> L0
-      #0.5 clk = 1'b0; A_xmem = 11'b10000000000;
-      #0.5 clk = 1'b1;
-      for(t=0; t<col; t=t+1) begin  
-        #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
-        #0.5 clk = 1'b1;  
-      end
-      #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
-      #0.5 clk = 1'b1; 
+      $fclose(x_file);
 
-      // 3. S_WS_FEED_W: Feed Weights L0 -> Array
-      #0.5 clk = 1'b0; l0_rd = 1; load = 1; 
-      #0.5 clk = 1'b1;
-      // Allow time for weights to propagate (row + padding)
-      for(t=0; t< 2*col; t=t+1) begin
-        #0.5 clk = 1'b0; 
-        #0.5 clk = 1'b1;
-      end
-      #0.5 clk = 1'b0;  load = 0; l0_rd = 0;
-      #0.5 clk = 1'b1;  
-
-      // 4. S_WS_LOAD_X: Load Activations Memory -> L0
-      #0.5 clk = 1'b0; A_xmem = 11'b00000000000;
-      #0.5 clk = 1'b1;
-      for(t=0; t<len_nij; t=t+1) begin  
-        #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
-        #0.5 clk = 1'b1;  
-      end
-      #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
-      #0.5 clk = 1'b1; 
-
-      // 5. S_WS_EXECUTE: Execute
-      #0.5 clk = 1'b0; l0_rd = 1; execute = 1;
-      #0.5 clk = 1'b1;
-      #0.5 clk = 1'b0; #0.5 clk = 1'b1; // Prop delay
-
-      for(t=0; t< len_nij; t=t+1) begin
-        #0.5 clk = 1'b0; 
-        #0.5 clk = 1'b1;
-      end
-      #0.5 clk = 1'b0;  execute = 0; l0_rd = 0;
-      #0.5 clk = 1'b1;  
-
-      // 6. Read OFIFO
-      t=0; A_pmem= 11'b00000000000;
-      while(t < len_nij) begin
-        #0.5 clk = 1'b0;  
-        if(ofifo_valid == 1'b1) begin
-          WEN_pmem = 0; CEN_pmem = 0; ofifo_rd=1; if (t>0) A_pmem = A_pmem + 1; 
-          t = t+1;
+      // KIJ Loop
+      for (kij=0; kij<9; kij=kij+1) begin 
+        
+        w_file_name = "weight.txt"; 
+        w_file = $fopen(w_file_name, "r");
+        if (w_file == 0) begin
+            $display("ERROR: weight.txt not found!");
+            $finish;
         end
-        else begin
-          CEN_pmem = 1; ofifo_rd =0;
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+        w_scan_file = $fscanf(w_file,"%s", captured_data);
+
+        // Reset Sequence inside loop
+        #0.5 clk = 1'b0;   reset = 1;
+        #0.5 clk = 1'b1; 
+        for (i=0; i<10 ; i=i+1) begin #0.5 clk = 1'b0; #0.5 clk = 1'b1; end
+        #0.5 clk = 1'b0;   reset = 0;
+        #0.5 clk = 1'b1; 
+        #0.5 clk = 1'b0;   
+        #0.5 clk = 1'b1;   
+
+        /////// Kernel data writing to memory ///////
+        A_xmem = 11'b10000000000;
+        for (t=0; t<col; t=t+1) begin  
+          #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
+          #0.5 clk = 1'b1;  
         end
+        #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
+        #0.5 clk = 1'b1; 
+
+        /////// Kernel data writing to L0 ///////
+        #0.5 clk = 1'b0; A_xmem = 11'b10000000000;
+        #0.5 clk = 1'b1;
+        for(t=0; t<col; t=t+1) begin  
+          #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+          #0.5 clk = 1'b1;  
+        end
+        #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
+        #0.5 clk = 1'b1; 
+
+        /////// Kernel loading to PEs ///////
+        #0.5 clk = 1'b0; l0_rd = 1; load = 1;
+        #0.5 clk = 1'b1;
+        for(t=0; t< 2*col; t=t+1) begin #0.5 clk = 1'b0; #0.5 clk = 1'b1; end
+        #0.5 clk = 1'b0;  load = 0; l0_rd = 0;
         #0.5 clk = 1'b1;  
-      end
-      #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
-      #0.5 clk = 1'b1; 
+        for (i=0; i<10 ; i=i+1) begin #0.5 clk = 1'b0; #0.5 clk = 1'b1; end
 
-    end // End KIJ loop
-    $fclose(w_file);
+        /////// Activation data writing to L0 ///////
+        #0.5 clk = 1'b0; A_xmem = 11'b00000000000;
+        #0.5 clk = 1'b1;
+        for(t=0; t<len_nij; t=t+1) begin  
+          #0.5 clk = 1'b0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+          #0.5 clk = 1'b1;  
+        end
+        #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
+        #0.5 clk = 1'b1; 
 
-    // Verification (Only valid for WS mode logic)
-    // ... [Verification Logic same as before] ...
-    
+        /////// Execution ///////
+        #0.5 clk = 1'b0; l0_rd = 1; execute = 1;
+        #0.5 clk = 1'b1;
+        for(t=0; t< len_nij; t=t+1) begin #0.5 clk = 1'b0; #0.5 clk = 1'b1; end
+        #0.5 clk = 1'b0;  execute = 0; l0_rd = 0; #0.5 clk = 1'b1;  
+        for (i=0; i<10 ; i=i+1) begin #0.5 clk = 1'b0; #0.5 clk = 1'b1; end
+
+        //////// OFIFO READ ////////
+        t=0;
+        A_pmem= 11'b00000000000;
+        while(t < len_nij) begin
+          #0.5 clk = 1'b0;  
+          if(ofifo_valid == 1'b1) begin
+            WEN_pmem = 0; CEN_pmem = 0; ofifo_rd=1; if (t>0) A_pmem = A_pmem + 1; 
+            t = t+1;
+          end
+          else begin
+            CEN_pmem = 1; ofifo_rd =0;
+          end
+          #0.5 clk = 1'b1;  
+        end
+        #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0; ofifo_rd = 0;
+        #0.5 clk = 1'b1; 
+      end // End KIJ
   end 
   else begin
-    // =========================================================================
-    // OUTPUT STATIONARY (OS) SEQUENCE
-    // =========================================================================
-    $display("Starting Output Stationary Test...");
-    
-    // In OS Mode: Weights flow N->S (Vertical), Inputs flow W->E (Horizontal)
-    
-    // 1. S_OS_LOAD_X: Load Activations Memory -> L0
-    // (Assuming activations already in Mem from a file load similar to WS)
-    // For Demo: Loading dummy/file data into L0
-    x_file = $fopen("activation.txt", "r");
-    x_scan_file = $fscanf(x_file,"%s", captured_data); // Skip header
-    x_scan_file = $fscanf(x_file,"%s", captured_data);
-    x_scan_file = $fscanf(x_file,"%s", captured_data);
+      // =========================================================================
+      // OUTPUT STATIONARY (OS) SEQUENCE
+      // =========================================================================
+      $display("Starting Output Stationary Test...");
 
-    // Direct Mem Load (Simulating pre-load)
-    for (t=0; t<row; t=t+1) begin  
-        #0.5 clk = 1'b0; x_scan_file = $fscanf(x_file,"%32b", D_xmem); 
-        CEN_xmem = 0; WEN_xmem = 0; A_xmem = t;
-        #0.5 clk = 1'b1; 
-    end
-    #0.5 clk = 1'b0; CEN_xmem = 1; WEN_xmem = 1; #0.5 clk = 1'b1;
-    $fclose(x_file);
+      // 1. Load Activations to XMEM (Same as before)
+      x_file = $fopen("activation.txt", "r");
+      if (x_file == 0) begin
+        $display("ERROR: activation.txt not found!");
+        $finish;
+      end
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
+      x_scan_file = $fscanf(x_file,"%s", captured_data);
 
-    // Transfer Mem -> L0
-    #0.5 clk = 1'b0; A_xmem = 0; #0.5 clk = 1'b1;
-    for(t=0; t<row; t=t+1) begin
-       #0.5 clk = 1'b0; CEN_xmem = 0; if(t>0) A_xmem = A_xmem+1; l0_wr = 1;
-       #0.5 clk = 1'b1;
-    end
-    #0.5 clk = 1'b0; CEN_xmem = 1; l0_wr = 0; #0.5 clk = 1'b1;
+      for (t=0; t<row; t=t+1) begin  
+          #0.5 clk = 1'b0; x_scan_file = $fscanf(x_file,"%32b", D_xmem); 
+          CEN_xmem = 0; WEN_xmem = 0; A_xmem = t;
+          #0.5 clk = 1'b1; 
+      end
+      #0.5 clk = 1'b0; CEN_xmem = 1; WEN_xmem = 1; #0.5 clk = 1'b1;
+      $fclose(x_file);
 
-    // 2. S_OS_LOAD_W: Load Weights Memory -> IFIFO
-    w_file_name = "weight.txt";
-    w_file = $fopen(w_file_name, "r");
-    w_scan_file = $fscanf(w_file,"%s", captured_data); // Skip header
-    w_scan_file = $fscanf(w_file,"%s", captured_data);
-    w_scan_file = $fscanf(w_file,"%s", captured_data);
+      // Transfer XMEM -> L0
+      #0.5 clk = 1'b0; A_xmem = 0; #0.5 clk = 1'b1;
+      for(t=0; t<row; t=t+1) begin
+         #0.5 clk = 1'b0; CEN_xmem = 0; if(t>0) A_xmem = A_xmem+1; l0_wr = 1;
+         #0.5 clk = 1'b1;
+      end
+      #0.5 clk = 1'b0; CEN_xmem = 1; l0_wr = 0; #0.5 clk = 1'b1;
 
-    // Direct Mem Load (Using upper memory addresses for weights)
-    for (t=0; t<col; t=t+1) begin  
-        #0.5 clk = 1'b0; w_scan_file = $fscanf(w_file,"%32b", D_xmem); 
-        CEN_xmem = 0; WEN_xmem = 0; A_xmem = t + 20; // Offset address
-        #0.5 clk = 1'b1; 
-    end
-    #0.5 clk = 1'b0; CEN_xmem = 1; WEN_xmem = 1; #0.5 clk = 1'b1;
-    $fclose(w_file);
+      // 2. Load Weights to PMEM (NEW REQUIREMENT)
+      w_file_name = "weight.txt";
+      w_file = $fopen(w_file_name, "r");
+      if (w_file == 0) begin
+        $display("ERROR: weight.txt not found!");
+        $finish;
+      end
+      w_scan_file = $fscanf(w_file,"%s", captured_data);
+      w_scan_file = $fscanf(w_file,"%s", captured_data);
+      w_scan_file = $fscanf(w_file,"%s", captured_data);
 
-    // Transfer Mem -> IFIFO
-    #0.5 clk = 1'b0; A_xmem = 20; #0.5 clk = 1'b1;
-    for(t=0; t<col; t=t+1) begin
-       #0.5 clk = 1'b0; CEN_xmem = 0; if(t>0) A_xmem = A_xmem+1; ififo_wr = 1;
-       #0.5 clk = 1'b1;
-    end
-    #0.5 clk = 1'b0; CEN_xmem = 1; ififo_wr = 0; #0.5 clk = 1'b1;
+      // Write to PMEM (128-bit wide). Weights are 32-bit.
+      // We zero-pad the MSBs: {96'b0, weight_data}
+      for (t=0; t<col; t=t+1) begin  
+          #0.5 clk = 1'b0; 
+          w_scan_file = $fscanf(w_file,"%32b", D_xmem); // Reuse D_xmem var to read file 32b
+          D_pmem = {96'b0, D_xmem}; // Pad to 128 bits
+          CEN_pmem = 0; WEN_pmem = 0; A_pmem = t; 
+          #0.5 clk = 1'b1; 
+      end
+      #0.5 clk = 1'b0; CEN_pmem = 1; WEN_pmem = 1; #0.5 clk = 1'b1;
+      $fclose(w_file);
 
-    // 3. S_OS_EXECUTE: Execute (Stream Both)
-    $display("Executing OS Mode...");
-    #0.5 clk = 1'b0; 
-    execute = 1; 
-    l0_rd = 1;    // Stream Activations W->E
-    ififo_rd = 1; // Stream Weights N->S
-    #0.5 clk = 1'b1;
+      // Transfer PMEM -> IFIFO
+      // We read from PMEM. The IFIFO is connected to the LSB 32 bits of i_pmem_data in corelet.
+      #0.5 clk = 1'b0; A_pmem = 0; #0.5 clk = 1'b1;
+      for(t=0; t<col; t=t+1) begin
+         #0.5 clk = 1'b0; 
+         CEN_pmem = 0; WEN_pmem = 1; // Read Mode
+         if(t>0) A_pmem = A_pmem+1; 
+         ififo_wr = 1;
+         #0.5 clk = 1'b1;
+      end
+      #0.5 clk = 1'b0; CEN_pmem = 1; ififo_wr = 0; #0.5 clk = 1'b1;
 
-    // Run for sufficient cycles (Row + Col + Pipeline)
-    for(t=0; t< row + col + 5; t=t+1) begin
-      #0.5 clk = 1'b0;
+      // 3. Execute OS Mode
+      $display("Executing OS Mode...");
+      #0.5 clk = 1'b0; 
+      execute = 1; 
+      l0_rd = 1;    // Stream Activations W->E
+      ififo_rd = 1; // Stream Weights N->S
       #0.5 clk = 1'b1;
-    end
 
-    #0.5 clk = 1'b0; execute = 0; l0_rd = 0; ififo_rd = 0; #0.5 clk = 1'b1;
-    $display("OS Mode Execution Complete.");
+      // Run for sufficient cycles (Row + Col + Pipeline)
+      for(t=0; t< row + col + 5; t=t+1) begin
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;
+      end
+
+      #0.5 clk = 1'b0; execute = 0; l0_rd = 0; ififo_rd = 0; #0.5 clk = 1'b1;
+      $display("OS Mode Execution Complete.");
   end
 
+  // Common Completion
   #10 $finish;
 
 end
 
-// Pipeline registers logic
 always @ (posedge clk) begin
    inst_w_q   <= inst_w; 
    D_xmem_q   <= D_xmem;
+   D_pmem_q   <= D_pmem; // Pipeline D_pmem
    CEN_xmem_q <= CEN_xmem;
    WEN_xmem_q <= WEN_xmem;
    A_pmem_q   <= A_pmem;
@@ -337,10 +363,17 @@ always @ (posedge clk) begin
    ififo_wr_q <= ififo_wr;
    ififo_rd_q <= ififo_rd;
    l0_rd_q    <= l0_rd;
-   l0_wr_q    <= l0_wr;
+   l0_wr_q    <= l0_wr ;
    execute_q  <= execute;
    load_q     <= load;
    mode_q     <= mode; 
+end
+
+// MONITOR IFIFO LOADING
+always @ (posedge clk) begin
+    if (ififo_wr_q) begin
+        $display("[Time %0t] IFIFO LOAD: Data=%h (from PMEM[31:0])", $time, D_pmem_q[31:0]);
+    end
 end
 
 endmodule

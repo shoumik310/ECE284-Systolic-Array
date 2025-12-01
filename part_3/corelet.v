@@ -1,19 +1,18 @@
 module corelet (
-    clk, reset, mode,
-    
-    // Controls
+    clk, 
+    reset, 
+    mode,
     inst_w,
-    l0_rd, l0_wr,
-    ififo_wr, ififo_rd, 
+    l0_rd, 
+    l0_wr,
+    ififo_wr, 
+    ififo_rd, 
     sfp_acc_en,
     ofifo_rd,
-
-    // Data Interfaces
-    input  [row*bw-1:0] i_xmem_data,      
-    input  [col*psum_bw-1:0] i_pmem_data, 
-
-    output [col*psum_bw-1:0] o_sfp_out,   
-    output o_ofifo_valid
+    i_xmem_data,      
+    i_pmem_data, 
+    o_sfp_out,   
+    o_ofifo_valid
 );
 
   parameter row = 8;
@@ -21,14 +20,26 @@ module corelet (
   parameter bw = 4;
   parameter psum_bw = 16;
 
-  input clk, reset, mode;
-  input [2:0] inst_w; // Updated: 3-bit Input
-  input l0_rd, l0_wr;
-  input ififo_wr, ififo_rd;
+  // --- Port Declarations ---
+  input clk;
+  input reset;
+  input mode;
+  input [2:0] inst_w;
+  input l0_rd;
+  input l0_wr;
+  input ififo_wr;
+  input ififo_rd;
   input sfp_acc_en;
   input ofifo_rd;
 
-  // Internal Wires
+  // Data Interfaces
+  input  [row*bw-1:0] i_xmem_data;      
+  input  [col*psum_bw-1:0] i_pmem_data; 
+
+  output [col*psum_bw-1:0] o_sfp_out;   
+  output o_ofifo_valid;
+
+  // --- Internal Logic ---
   wire [row*bw-1:0] l0_out;
   wire [col*bw-1:0] ififo_out;          
   wire [col*psum_bw-1:0] array_in_n;    
@@ -37,9 +48,7 @@ module corelet (
   wire [col*psum_bw-1:0] fifo_out_wire; 
   wire [col*psum_bw-1:0] sfp_out_wire;
   
-  // --------------------------------------------------------
-  // L0 Buffer
-  // --------------------------------------------------------
+  // 1. L0 Buffer
   l0 #(.row(row), .bw(bw)) l0_inst (
       .clk(clk),
       .reset(reset),
@@ -51,13 +60,11 @@ module corelet (
       .o_ready()    
   );
 
-  // --------------------------------------------------------
-  // IFIFO (New Component for OS Mode)
-  // --------------------------------------------------------
+  // 2. IFIFO
   ififo #(.col(col), .bw(bw)) ififo_inst (
       .clk(clk),
       .reset(reset),
-      .in(i_xmem_data), 
+      .in(i_pmem_data[col*bw-1:0]), // Input from PMEM LSBs
       .out(ififo_out),
       .rd(ififo_rd),
       .wr(ififo_wr),
@@ -65,10 +72,7 @@ module corelet (
       .o_ready()
   );
 
-  // --------------------------------------------------------
-  // Array North Input Logic
-  // --------------------------------------------------------
-  // We keep 'mode' input here for this specific mux logic
+  // 3. Array North Input Logic
   genvar i;
   generate
     for (i=0; i<col; i=i+1) begin : padding
@@ -77,23 +81,18 @@ module corelet (
     end
   endgenerate
 
-  // --------------------------------------------------------
-  // MAC Array
-  // --------------------------------------------------------
+  // 4. MAC Array
   mac_array #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) mac_array_inst (
       .clk(clk),
       .reset(reset),
-      // .mode(mode) is removed because mode is now packed inside inst_w[2]
       .in_w(l0_out),
-      .inst_w(inst_w),      // Passing 3-bit instruction
+      .inst_w(inst_w),      
       .in_n(array_in_n),    
       .out_s(array_out_s),  
       .valid(array_valid)
   );
 
-  // --------------------------------------------------------
-  // OFIFO
-  // --------------------------------------------------------
+  // 5. OFIFO
   ofifo #(.col(col), .bw(psum_bw)) ofifo_inst (
       .clk(clk),
       .reset(reset),
@@ -106,9 +105,7 @@ module corelet (
       .o_valid(o_ofifo_valid)
   );
 
-  // --------------------------------------------------------
-  // SFP
-  // --------------------------------------------------------
+  // 6. SFP
   sfp #(.col(col), .psum_bw(psum_bw)) sfp_inst (
       .clk(clk),
       .reset(reset),

@@ -21,27 +21,28 @@ reg signed [psum_bw-1:0] c_q;
 reg load_ready_q;
 reg [1:0] cnt;
 
-reg [psum_bw-1:0] tile_out_s;
-wire signed [2*psum_bw-1:0] mac_out;
+wire signed [psum_bw-1:0] mac_out;
 
 assign out_e = a_q;
 assign inst_e = inst_q;
 
-mac #(.bw(bw), .psum_bw(psum_bw)) mac_instance1 (
+mac #(.bw(bw)) mac_instance1 (
         .a(a_q[1:0]), 
         .b(b_q[bw-1:0]),
-        .c(16'b0),
-	.out(mac_out[psum_bw-1:0])
+        .c(8'b0),
+	.out(mac_out[7:0])
 );
 
-mac #(.bw(bw), .psum_bw(psum_bw)) mac_instance2 (
+mac #(.bw(bw)) mac_instance2 (
         .a(a_q[3:2]), 
         .b(b_q[2*bw-1:bw]),
-        .c(16'b0),
-	.out(mac_out[2*psum_bw-1:psum_bw])
+        .c(8'b0),
+	.out(mac_out[15:8])
 );
 
-assign out_s = tile_out_s;
+assign out_s = (mode == 0) ? 
+                (mac_out + in_n) :
+                (mac_out[7:0] + mac_out[15:8] + in_n);
 
 always @ (posedge clk) begin
     if (reset == 1) begin
@@ -63,12 +64,6 @@ always @ (posedge clk) begin
 
         if (inst_w[1]) begin
             c_q <= in_n;
-            if (mode == 0) begin
-                tile_out_s <= mac_out + in_n;
-            end
-            else begin
-                tile_out_s <= mac_out[psum_bw-1:0] + mac_out[2*psum_bw-1:psum_bw] + in_n;
-            end
         end
 
         if (inst_w[0] == 1'b1 && load_ready_q == 1'b1) begin    // kernel loading

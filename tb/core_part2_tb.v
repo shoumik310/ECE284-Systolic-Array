@@ -195,8 +195,8 @@ initial begin
           $sformat(w1_file_name, "./data/4_bit/weights/weight_%0d.txt", kij);
         end else begin
           w2_file_name = "";
-          $sformat(w1_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", 2*k_tile, kij);
-          $sformat(w2_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", 2*k_tile+1, kij);
+          $sformat(w1_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", k_tile, kij);
+          $sformat(w2_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", k_tile+2, kij);
         end
 
         w1_file = $fopen(w1_file_name, "r");
@@ -243,12 +243,14 @@ initial begin
           WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
           #0.5 clk = 1'b1;
         end
+        $fclose(w1_file);
         if (mode == 1) begin
-          for (t=0; t<col+1; t=t+1) begin  
+          for (t=0; t<col+1; t=t+1) begin
             #0.5 clk = 1'b0;  w2_scan_file = $fscanf(w2_file,"%32b", D_xmem);
             WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
             #0.5 clk = 1'b1;
           end
+          $fclose(w2_file);
         end
 
         #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
@@ -321,9 +323,9 @@ initial begin
         l0_rd = 1;
         #0.5 clk = 1'b1;
 
-        #0.5 clk = 1'b0;
+        //#0.5 clk = 1'b0;
         // Cycle for read signal to propogate
-        #0.5 clk = 1'b1;
+        //#0.5 clk = 1'b1;
         // Cycles for the FIFO to complete
         for(t=0; t< len_nij; t=t+1) begin
           #0.5 clk = 1'b0;
@@ -381,7 +383,7 @@ initial begin
         // // Following three lines are to remove the first three comment lines of the file
         // out_scan_file = $fscanf(out_file,"%s", stringvar);
         // out_scan_file = $fscanf(out_file,"%s", stringvar);
-        // // out_scan_file = $fscanf(out_file,"%s", stringvar); 
+        // out_scan_file = $fscanf(out_file,"%s", stringvar); 
 
         // error = 0;
         // $display("############ Verification Start for MODE %0d TILE %0d #############", mode, k_tile);
@@ -406,19 +408,19 @@ initial begin
         //         error = 1;
         //       end
         //     end
-        //   end else begin
-        //    if (i>0) begin
-        //      out_scan_file = $fscanf(out_file,"%256b", answer); // reading from out file to answer
-        //      if (sfp_out == answer)
-        //        $display("%2d-th output featuremap Data matched! :D", i); 
-        //      else begin
-        //        $display("%2d-th output featuremap Data ERROR!!", i); 
-        //        $display("sfpout: %256b", sfp_out);
-        //        $display("answer: %256b", answer);
-        //        error = 1;
-        //      end
-        //    end
-        //   end
+        //   // end else begin
+        //   //  if (i>0) begin
+        //   //    out_scan_file = $fscanf(out_file,"%256b", answer); // reading from out file to answer
+        //   //    if (sfp_out == answer)
+        //   //      $display("%2d-th output featuremap Data matched! :D", i); 
+        //   //    else begin
+        //   //      $display("%2d-th output featuremap Data ERROR!!", i); 
+        //   //      $display("sfpout: %256b", sfp_out);
+        //   //      $display("answer: %256b", answer);
+        //   //      error = 1;
+        //   //    end
+        //   //  end
+        //   // end
     
   
         //   #0.5 clk = 1'b0; reset = 1;

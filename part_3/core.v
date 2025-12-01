@@ -1,4 +1,12 @@
-module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
+module core (
+    clk, 
+    inst, 
+    ofifo_valid, 
+    D_xmem, 
+    D_pmem, 
+    sfp_out, 
+    reset
+);
 
   parameter bw = 4;
   parameter psum_bw = 16;
@@ -7,16 +15,15 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
 
   input clk;
   input reset;
-  input [34:0] inst;          // 35-bit Instruction Bus
+  input [34:0] inst;          
   input [row*bw-1:0] D_xmem;  
+  input [col*psum_bw-1:0] D_pmem; 
   
   output ofifo_valid;
   output [col*psum_bw-1:0] sfp_out; 
 
-  // --------------------------------------------------------
-  // 1. Instruction Decoding
-  // --------------------------------------------------------
-  wire mode         = inst[34]; // Mode bit (0: WS, 1: OS)
+  // --- Instruction Decoding ---
+  wire mode         = inst[34]; 
   wire acc_en       = inst[33];
   wire cen_pmem     = inst[32];
   wire wen_pmem     = inst[31];
@@ -25,28 +32,24 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
   wire wen_xmem     = inst[18];
   wire [10:0] a_xmem= inst[17:7];
   wire ofifo_rd     = inst[6];
-  wire ififo_wr     = inst[5];  // Control for IFIFO Write
-  wire ififo_rd     = inst[4];  // Control for IFIFO Read
+  wire ififo_wr     = inst[5];  
+  wire ififo_rd     = inst[4];  
   wire l0_rd        = inst[3];
   wire l0_wr        = inst[2];
   wire execute      = inst[1];
   wire load         = inst[0];
 
-  // Updated: inst_w includes mode at bit 2
   wire [2:0] inst_w = {mode, execute, load}; 
 
-  // --------------------------------------------------------
-  // 2. Internal Wires
-  // --------------------------------------------------------
+  // --- Internal Wires ---
   wire [row*bw-1:0] xmem_out;         
   wire [col*psum_bw-1:0] pmem_out;    
   wire [col*psum_bw-1:0] pmem_in;     
   
-  assign pmem_in = sfp_out;
+  // Mux for Psum Memory Input
+  assign pmem_in = (acc_en) ? sfp_out : D_pmem;
 
-  // --------------------------------------------------------
-  // 3. Activation/Weight SRAM (XMEM)
-  // --------------------------------------------------------
+  // 1. Activation/Weight SRAM (XMEM)
   sram_32b_w2048 xmem_inst (
       .CLK(clk),
       .D(D_xmem),       
@@ -56,9 +59,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .A(a_xmem)        
   );
 
-  // --------------------------------------------------------
-  // 4. Psum SRAM (PMEM)
-  // --------------------------------------------------------
+  // 2. Psum SRAM (PMEM)
   sram_128b_w2048 pmem_inst (
       .CLK(clk),
       .D(pmem_in),      
@@ -68,14 +69,12 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .A(a_pmem)
   );
 
-  // --------------------------------------------------------
-  // 5. Corelet Instance
-  // --------------------------------------------------------
+  // 3. Corelet Instance
   corelet #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) corelet_inst (
       .clk(clk),
       .reset(reset),
       .mode(mode),
-      .inst_w(inst_w),          // Passing 3-bit instruction
+      .inst_w(inst_w),          
       .l0_rd(l0_rd),
       .l0_wr(l0_wr),
       .ififo_wr(ififo_wr),

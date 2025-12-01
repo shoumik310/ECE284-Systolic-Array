@@ -1,7 +1,11 @@
 # suffix (i.e. gclk)
 SUFF :=
 
-.PHONY: gclk, clean
+.PHONY: gclk clean verif
+
+compiled_verif: filelist_verif
+	iverilog -c $< -o $@ -g2012
+	
 
 compiled%: filelist%
 	iverilog -c $< -o $@
@@ -14,3 +18,6 @@ gclk: compiled_gclk
 
 clean:
 	rm -f compiled compiled_*
+
+verif: compiled_verif
+	$(MAKE) run_verif

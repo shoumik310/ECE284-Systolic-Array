@@ -1,7 +1,7 @@
 # suffix (i.e. gclk)
 SUFF :=
 
-.PHONY: gclk, clean
+.PHONY: gclk clean verif
 
 compiled_verif: filelist_verif
 	iverilog -c $< -o $@ -g2012

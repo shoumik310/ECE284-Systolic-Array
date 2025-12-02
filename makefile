@@ -1,23 +1,29 @@
-# suffix (i.e. gclk)
-SUFF :=
 
-.PHONY: gclk clean verif
+.PHONY: gclk clean verif run run% vanilla
 
-compiled_verif: filelist_verif
-	iverilog -c $< -o $@ -g2012
-	
+# compiled_verif: filelist_verif
+# 	iverilog -c $< -o $@ -g2012
 
-compiled%: filelist%
+compiled: filelist
 	iverilog -c $< -o $@
+
+run: compiled
+	vvp $<
+	
+compiled%: filelist%
+	iverilog -c $< -o $@ -g2012
 
 run%: compiled%
 	vvp $<
 
+vanilla: compiled_vanilla
+	$(MAKE) run_vanilla
+
 gclk: compiled_gclk
 	$(MAKE) run_gclk
 
-clean:
-	rm -f compiled compiled_*
-
 verif: compiled_verif
 	$(MAKE) run_verif
+
+clean:
+	rm -f compiled compiled_*

@@ -42,7 +42,7 @@ mac #(.bw(bw)) mac_instance2 (
 
 assign out_s = (mode == 0) ? 
                 (mac_out + in_n) :
-                (mac_out[7:0] + mac_out[15:8] + in_n);
+                (mac_out[7:0] + mac_out[15:8] + c_q);
 
 always @ (posedge clk) begin
     if (reset == 1) begin

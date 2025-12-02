@@ -61,19 +61,18 @@ reg execute_q = 0; // execute instruction pipeline reg
 reg load_q = 0; // load instruction pipeline reg
 
 reg [8*60:1] stringvar;
-reg [8*60:1] w1_file_name;
-reg [8*60:1] w2_file_name;
+reg [8*60:1] w_file_name;
 wire ofifo_valid;
 wire [col*psum_bw-1:0] sfp_out;
 
 integer x_file, x_scan_file ; // file_handler
-integer w1_file, w1_scan_file ; // file_handler
-integer w2_file, w2_scan_file ; // file_handler
+integer w_file, w_scan_file ;// file_handler
 integer acc_file, acc_scan_file ; // file_handler
 integer out_file, out_scan_file ; // file_handler
 integer captured_data;
 integer t, i, j, k, kij;
 integer error;
+integer len_nij_mode; // Length of nij based on mode
 
 assign inst_q[33] = acc_q; 
 assign inst_q[32] = CEN_pmem_q;
@@ -99,7 +98,7 @@ integer num_tiles; // Number of tiles based for mode=1
 reg [8*60:1] x_file_name;   // Variable for activation file name
 reg [8*60:1] out_file_name; // Variable for expected output file name
 
-core  #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) core_instance (
+core  #(.bw(bw), .col(col), .row(row)) core_instance (
 	.clk(clk), 
 	.inst(inst_q),
 	.ofifo_valid(ofifo_valid),
@@ -115,9 +114,14 @@ initial begin
 
   // START MODE LOOP
   // This will run the full test for Mode 0, then Mode 1
-  for (k_mode = 1; k_mode < 2; k_mode = k_mode + 1) begin
+  for (k_mode = 0; k_mode < 1; k_mode = k_mode + 1) begin
     
     mode = k_mode;
+    if (mode == 1)
+      len_nij_mode = 16;
+    else
+      len_nij_mode = 64;
+
     // Determine number of tiles based on mode
     if (mode == 0) num_tiles = 1;
     else num_tiles = 2; // 2-bit mode has 2 tiles
@@ -145,10 +149,9 @@ initial begin
 
       // FILE SELECTION BASED ON MODE
       if (mode == 0) begin
-          x_file_name = "./data/4_bit/activation.txt";
+          x_file_name = "./data/4_bit/genActivation.txt";
       end else begin
-          // Dynamic filename generation for 2-bit tiles (ic0, ic1)
-          $sformat(x_file_name, "./data/2_bit/activations/activation_ic%0d.txt", k_tile);
+          $sformat(x_file_name, "./data/2_bit/activations/activation.txt");
       end
 
       x_file = $fopen(x_file_name, "r");
@@ -157,9 +160,9 @@ initial begin
         $finish;
       end
       // Following three lines are to remove the first three comment lines of the file
-      x_scan_file = $fscanf(x_file,"%s", stringvar);
-      x_scan_file = $fscanf(x_file,"%s", stringvar);
-      x_scan_file = $fscanf(x_file,"%s", stringvar);
+      x_scan_file = $fgets(stringvar, x_file);
+      x_scan_file = $fgets(stringvar, x_file);
+      x_scan_file = $fgets(stringvar, x_file);
 
       //////// Reset /////////
       #0.5 clk = 1'b0;   reset = 1;
@@ -177,7 +180,7 @@ initial begin
       /////////////////////////
 
       /////// Activation data writing to memory - starting address = 0 ///////
-      for (t=0; t<len_nij; t=t+1) begin  
+      for (t=0; t<len_nij_mode; t=t+1) begin  
         #0.5 clk = 1'b0;
         x_scan_file = $fscanf(x_file,"%32b", D_xmem); WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1;
         #0.5 clk = 1'b1;   
@@ -190,36 +193,22 @@ initial begin
       /////////////////////////////////////////////////
 
       for (kij=0; kij<9; kij=kij+1) begin  // kij loop
-        w1_file_name = "";
+        w_file_name = "";
         if (mode == 0) begin
-          $sformat(w1_file_name, "./data/4_bit/weights/weight_%0d.txt", kij);
+          $sformat(w_file_name, "./data/4_bit/weights/genWeight_%0d.txt", kij);
         end else begin
-          w2_file_name = "";
-          $sformat(w1_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", k_tile, kij);
-          $sformat(w2_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", k_tile+2, kij);
+          $sformat(w_file_name, "./data/2_bit/weights/weight_tile%0d_kij%0d.txt", k_tile, kij);
         end
 
-        w1_file = $fopen(w1_file_name, "r");
-        if (!w1_file) begin
-            $display("ERROR: Cannot open %0s", w1_file_name);
+        w_file = $fopen(w_file_name, "r");
+        if (!w_file) begin
+            $display("ERROR: Cannot open %0s", w_file_name);
             $finish;
         end
         // Following three lines are to remove the first three comment lines of the file
-        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
-        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
-        w1_scan_file = $fscanf(w1_file,"%s", stringvar);
-
-        if (mode == 1) begin
-          w2_file = $fopen(w2_file_name, "r");
-          if (!w2_file) begin
-              $display("ERROR: Cannot open %0s", w2_file_name);
-              $finish;
-          end
-          // Following three lines are to remove the first three comment lines of the file
-          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
-          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
-          w2_scan_file = $fscanf(w2_file,"%s", stringvar);
-        end
+        w_scan_file = $fgets(stringvar, w_file);
+        w_scan_file = $fgets(stringvar, w_file);
+        w_scan_file = $fgets(stringvar, w_file);
 
         #0.5 clk = 1'b0;   reset = 1;
         #0.5 clk = 1'b1;
@@ -238,20 +227,19 @@ initial begin
         /////// Kernel data writing to memory - starting address = 11'b10000000000 ///////
         A_xmem = 11'b10000000000;
 
-        for (t=0; t<col+1; t=t+1) begin
-          #0.5 clk = 1'b0;  w1_scan_file = $fscanf(w1_file,"%32b", D_xmem);
+        for (t=0; t<row; t=t+1) begin
+          #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem);
           WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
           #0.5 clk = 1'b1;
         end
-        $fclose(w1_file);
         if (mode == 1) begin
-          for (t=0; t<col+1; t=t+1) begin
-            #0.5 clk = 1'b0;  w2_scan_file = $fscanf(w2_file,"%32b", D_xmem);
+          for (t=row; t<2*row+1; t=t+1) begin
+            #0.5 clk = 1'b0;  w_scan_file = $fscanf(w_file,"%32b", D_xmem);
             WEN_xmem = 0; CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; 
             #0.5 clk = 1'b1;
           end
-          $fclose(w2_file);
         end
+        $fclose(x_file);
 
         #0.5 clk = 1'b0;  WEN_xmem = 1;  CEN_xmem = 1; A_xmem = 0;
         #0.5 clk = 1'b1; 
@@ -263,29 +251,46 @@ initial begin
         A_xmem = 11'b10000000000;
         #0.5 clk = 1'b1;
 
-        for(t=0; t<2*col; t=t+1) begin  
+        for(t=0; t<col; t=t+1) begin  
           #0.5 clk = 1'b0;
           CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
           #0.5 clk = 1'b1;
         end
+        if (mode == 1) begin
+          for (t=col; t<2*col+1; t=t+1) begin
+          #0.5 clk = 1'b0;
+          CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
+          #0.5 clk = 1'b1;
+          end
+        end
+        
 
         #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
         #0.5 clk = 1'b1;
-        #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0; l0_wr = 0;
+        #0.5 clk = 1'b0;  CEN_xmem = 1; A_xmem = 0;
         #0.5 clk = 1'b1;
+
+        #0.5 clk = 1'b0; l0_wr = 0;
+        #0.5 clk = 1'b1; 
         /////////////////////////////////////
 
         /////// Kernel loading to PEs ///////
         // Assuming l0 direcly pushes into PE
-        #0.5 clk = 1'b0;
-        l0_rd = 1; 
+        #0.5 clk = 1'b0; l0_rd = 1; 
         #0.5 clk = 1'b1;
 
         // Cycles for the FIFO to complete
-        for(t=0; t< 2*2*col; t=t+1) begin
+        for(t=0; t< 2*col; t=t+1) begin
           #0.5 clk = 1'b0;
           load = 1;
           #0.5 clk = 1'b1;
+        end
+        if (mode == 1) begin
+        for(t=2*col; t< 2*2*col; t=t+1) begin
+          #0.5 clk = 1'b0;
+          load = 1;
+          #0.5 clk = 1'b1;
+        end
         end
         /////////////////////////////////////
     
@@ -304,12 +309,15 @@ initial begin
         #0.5 clk = 1'b0;
         A_xmem = 11'b00000000000;
         #0.5 clk = 1'b1;
-
-        for(t=0; t<len_nij; t=t+1) begin  
-          #0.5 clk = 1'b0;
-          CEN_xmem = 0; if (t>0) A_xmem = A_xmem + 1; l0_wr = 1;      
-          #0.5 clk = 1'b1;
-        end
+        
+        for(t=0; t<len_nij_mode; t=t+1) begin  
+          #0.5 clk = 1'b0; CEN_xmem = 0; 
+          if (t>0) begin
+            A_xmem = A_xmem + 1;
+            l0_wr = 1;      
+          end      
+          #0.5 clk = 1'b1;  
+       end
 
         #0.5 clk = 1'b0; // Write from memory to L0 is at T+1 posedge
         #0.5 clk = 1'b1;
@@ -319,24 +327,18 @@ initial begin
 
         /////// Execution ///////
         // Assuming l0 direcly pushes into PE
-        #0.5 clk = 1'b0;
-        l0_rd = 1;
+        #0.5 clk = 1'b0; l0_rd = 1;
         #0.5 clk = 1'b1;
 
-        //#0.5 clk = 1'b0;
-        // Cycle for read signal to propogate
-        //#0.5 clk = 1'b1;
         // Cycles for the FIFO to complete
-        for(t=0; t< len_nij; t=t+1) begin
-          #0.5 clk = 1'b0;
-          execute = 1;
+        for(t=0; t< len_nij_mode; t=t+1) begin
+          #0.5 clk = 1'b0; execute = 1;
           #0.5 clk = 1'b1;
         end
         /////////////////////////////////////
 
         //// provide some intermission to complete execution ///
-        #0.5 clk = 1'b0;
-        execute = 0; l0_rd = 0;
+        #0.5 clk = 1'b0; execute = 0; l0_rd = 0;
         #0.5 clk = 1'b1;
         for (i=0; i<10 ; i=i+1) begin
           #0.5 clk = 1'b0;
@@ -358,7 +360,7 @@ initial begin
         #0.5 clk = 1'b0; WEN_pmem = 0; CEN_pmem = 0; 
         #0.5 clk = 1'b1;
 
-        for(t=0; t<len_nij; t=t+1) begin
+        for(t=0; t<len_nij_mode; t=t+1) begin
           #0.5 clk = 1'b0; A_pmem = A_pmem + 1; 
           #0.5 clk = 1'b1;  
         end

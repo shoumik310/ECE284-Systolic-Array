@@ -25,12 +25,11 @@ The project files are organized to reflect the development phases and components
 
 * **`part1`**: Contains all files related to Vanilla version.
 * **`part2`**: Contains all files related to Part 2.
-* **`part3`**: Contains all files related to Part 3.
+* **`part3_and_alpha3`**: Contains all files related to Part 3 and unified memory optimization (Alpha 3).
 * **`poster`**: Contains the PDF of the project poster.
 * **`alpha`**: Contains the sub-folders for the incremental development phases (Alpha 1-4).
     * **`alpha/alpha1`**: Files related to simultaneous accumulation.
     * **`alpha/alpha2`**: Files related to functional verification.
-    * **`alpha/alpha3`**: Files related to unified memory optimization.
     * **`alpha/alpha4`**: Files related to circuit-level power optimizations.
 
 
@@ -38,7 +37,6 @@ The project files are organized to reflect the development phases and components
 ├── alpha/
 │   ├── alpha1/                 # Files related to simultaneous accumulation.
 │   ├── alpha2/                 # Files related to functional verification.
-│   ├── alpha3/                 # Files related to unified memory optimization.
 │   └── alpha4/                 # Files related to circuit-level power optimizations.
 ├── part1/                      # Contains all files related to Vanilla version.
 │   ├── core/                   
@@ -55,7 +53,7 @@ The project files are organized to reflect the development phases and components
 │   │   ├── core_tb.vcd
 │   └── filelist
 ├── part2/                      # Contains all files related to Part 2.
-├── part3/                      # Contains all files related to Part 3.
+├── part3/                      # Contains all files related to Part 3 and unified memory optimization (alpha 3).
 └── poster/                     # Contains the PDF of the project poster.
 ```
 
@@ -67,10 +65,10 @@ This project develops three specialized 2-D systolic array variants:
 
 ### Base Versions
 
-* **Vanilla (Weight Stationary - WS)**: The baseline architecture implements the fundamental **Weight Stationary (WS)** dataflow, primarily optimizing for weight reuse efficiency.
-* **SIMD Enhanced (2/4-bit Precision)**: Features a **Single Instruction, Multiple Data (SIMD)** data path to support **2-bit and 4-bit** input precision, which increases throughput for quantized neural network operations.
+* **Part 1: Vanilla (Weight Stationary - WS)**: The baseline architecture implements the fundamental **Weight Stationary (WS)** dataflow, primarily optimizing for weight reuse efficiency.
+* **Part 2: SIMD Enhanced (2/4-bit Precision)**: Features a **Single Instruction, Multiple Data (SIMD)** data path to support **2-bit and 4-bit** input precision, which increases throughput for quantized neural network operations.
     * Performance was measured on **VGGNet 16** with **4-bit** (85.360% accuracy on CIFAR 10) and **2-bit** (89.560% accuracy on CIFAR 10) Quantization Aware Training.
-* **Unified Stationary (WS & OS)**: Implements a flexible structure supporting dynamic switching between **Weight Stationary (WS)** and **Output Stationary (OS)** dataflows, aiming for applicability across various computation patterns.
+* **Part 3: Unified Stationary (WS & OS)**: Implements a flexible structure supporting dynamic switching between **Weight Stationary (WS)** and **Output Stationary (OS)** dataflows, aiming for applicability across various computation patterns.
 
 ---
 

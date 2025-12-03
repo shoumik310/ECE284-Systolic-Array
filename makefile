@@ -1,5 +1,5 @@
 
-.PHONY: gclk clean verif run run% vanilla
+.PHONY: gclk clean verif run run% vanilla part2
 
 # compiled_verif: filelist_verif
 # 	iverilog -c $< -o $@ -g2012
@@ -24,6 +24,9 @@ gclk: compiled_gclk
 
 verif: compiled_verif
 	$(MAKE) run_verif
+
+part2: compiled_part2
+	$(MAKE) run_part2
 
 clean:
 	rm -f compiled compiled_*

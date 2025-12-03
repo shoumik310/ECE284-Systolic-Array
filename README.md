@@ -94,11 +94,12 @@ This project develops three specialized 2-D systolic array variants:
 
 * **Concept**: In **Output Stationary mode**, the Partial Sum Memory (`pmem`) is bandwidth-heavy during accumulation but often idle during the initial weight loading phase.
 * **Optimization**: We reuse the existing high-bandwidth **pmem (128-bit)** to store weights instead of adding a separate, dedicated Kernel Memory (`kmem`).
-* **Benefit**: This removes the need for an additional 32-bit SRAM bank entirely[cite: 61]. Eliminating one SRAM block, which dominates silicon area, significantly reduces the **total hardware footprint and static power leakage**.
+* **Benefit**: This removes the need for an additional 32-bit SRAM bank entirely. Eliminating one SRAM block, which dominates silicon area, significantly reduces the **total hardware footprint and static power leakage**.
+* **Note**: This has been implemented with part 3 and hence shares the same folder.
 
 ### Alpha 4: Circuit Level Power Optimizations
 
-This phase focuses on saving dynamic power through two main circuit-level techniques[cite: 63]:
+This phase focuses on saving dynamic power through two main circuit-level techniques:
 
 1.  **Data Gating** 
     * **Concept**: When either the weight (`w`) or activation (`x`) is zero, the output simplifies to the partial sum (`psum`), making the MAC computation unnecessary.

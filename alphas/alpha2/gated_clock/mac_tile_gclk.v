@@ -1,0 +1,104 @@
+// Created by prof. Mingu Kang @VVIP Lab in UCSD ECE department
+// Please do not spread this code without permission 
+module mac_tile_gclk (clk, out_s, in_w, out_e, in_n, inst_w, inst_e, reset);
+parameter bw = 4;
+parameter psum_bw = 16;
+
+// ALPHA:
+// POWER OPTIM #1:
+// GATES THE CLOCKS OF REGISTERS "b_q" and "laod_ready_q"
+// BOTH OF THESE REGSISTERS HAVE LOW DUTY CYCLES AND THE VALUES INSIDE NEED NOT BE RELOADED EVERY CYCLE
+// USING LATCH ENABLE TECHNIQUE TO INCREASE CLOCK SKEW RELATED GLITCH RESISTANCE OF THE GATED CLOCK
+//
+
+output [psum_bw-1:0] out_s;
+input  [bw-1:0] in_w;
+output [bw-1:0] out_e; 
+input  [1:0] inst_w;
+output [1:0] inst_e;
+input  [psum_bw-1:0] in_n;
+input  clk;
+input  reset;
+
+reg [1:0] inst_q;
+reg signed [bw-1:0] a_q; // activation
+reg signed [bw-1:0] b_q; // weight
+reg signed [psum_bw-1:0] c_q;
+reg load_ready_q;
+
+wire signed [psum_bw-1:0] mac_out;
+
+assign out_e = a_q;
+assign inst_e = inst_q;
+
+// clock gating
+reg latch_c_reset;
+reg latch_isnt_ld_en;
+// gated clock: only to be used on the weight register
+wire g_clk = clk & ( (latch_isnt_ld_en) ); // (latch_c_reset) | 
+
+mac_d_gated #(.bw(bw), .psum_bw(psum_bw)) mac_instance (
+        .a(a_q), 
+        .b(b_q),
+        .c(c_q),
+	.out(mac_out)
+);
+
+assign out_s = mac_out;
+
+always @ (posedge clk) begin
+    if (reset == 1) begin
+        inst_q <= 2'b00;
+        
+        a_q <= 0;
+        c_q <= 0;
+
+		// moved to gated clock's always blocks:
+        // b_q <= 0;
+        // load_ready_q <= 1'b1;
+        
+    end else begin
+        
+        inst_q[1] <= inst_w[1];
+
+        if (inst_w[0] | inst_w[1]) begin
+            a_q <= in_w;
+        end
+        
+        if (inst_w[1]) begin
+            c_q <= in_n;
+        end
+
+		// moved to gated clock's always blocks:
+        // if (inst_w[0] == 1'b1 && load_ready_q == 1'b1) begin
+        //     b_q <= in_w;
+        //     load_ready_q <= 1'b0;
+        // end
+
+        if (load_ready_q == 1'b0) begin
+            inst_q[0] <= inst_w[0];
+        end
+    end
+end
+
+// DELIBERATELY SYNTHESIZE A LATCH
+// the latch prevents clock skew related glitches -- see the report for a comprehensive explanation
+always@(*) begin
+	if ( !clk ) begin
+		latch_c_reset = reset;
+		latch_isnt_ld_en = (inst_w[0] == 1'b1 && load_ready_q == 1'b1);
+	end
+end
+
+always@(posedge g_clk) begin
+	if (reset) begin
+		b_q <= 0;
+		load_ready_q <= 1'b1;
+	end else begin
+		b_q <= in_w;
+		load_ready_q <= 1'b0;
+	end
+end
+
+
+endmodule

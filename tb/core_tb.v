@@ -60,6 +60,7 @@ reg load; // load instruction
 reg execute_q = 0; // execute instruction pipeline reg
 reg load_q = 0; // load instruction pipeline reg
 
+reg [10:0] A_pmem_load; // Psum SRAM address for loading
 reg [8*30:1] stringvar;
 reg [8*30:1] w_file_name;
 wire ofifo_valid;
@@ -350,6 +351,7 @@ initial begin
   //SECTION - Accumulation
   acc_file = $fopen("acc_add.txt", "r"); 
 
+  A_pmem_load= 11'b10000000000;
   for (i=0; i<len_onij+1; i=i+1) begin 
 
     #0.5 clk = 1'b0; 
@@ -378,12 +380,14 @@ initial begin
       #0.5 clk = 1'b0;   
         if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
                        else  begin CEN_pmem = 1; WEN_pmem = 1; end
-
         if (j>0)  acc = 1;  
       #0.5 clk = 1'b1;   
     end
+    
+    #0.5 clk = 1'b0; acc = 0; CEN_pmem = 0; WEN_pmem = 0; A_pmem = A_pmem_load;
+    #0.5 clk = 1'b1; 
 
-    #0.5 clk = 1'b0; acc = 0;
+    #0.5 clk = 1'b0; acc = 0; CEN_pmem = 1; WEN_pmem = 1; A_pmem_load = A_pmem_load + 1;
     #0.5 clk = 1'b1; 
   end
   //!SECTION

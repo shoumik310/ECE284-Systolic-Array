@@ -1,23 +1,23 @@
-./vanilla/core/core.v
-./vanilla/core/corelet.v
+./alpha/alpha4/core/core.v
+./alpha/alpha4/core/corelet.v
 
-./vanilla/gated_clock/mac_d_gated.v
-./vanilla/gated_clock/mac_tile_gclk.v
-./vanilla/gated_clock/mac_row.v
-./vanilla/systolic_array/mac_array.v
+./alpha/alpha4/gated_clock/mac_d_gated.v
+./alpha/alpha4/gated_clock/mac_tile_gclk.v
+./alpha/alpha4/gated_clock/mac_row.v
+./alpha/alpha4/systolic_array/mac_array.v
 
-./vanilla/fifos/fifo_depth64.v
-./vanilla/fifos/fifo_depth8.v
-./vanilla/fifos/fifo_mux_2_1.v
-./vanilla/fifos/fifo_mux_8_1.v
-./vanilla/fifos/fifo_mux_16_1.v
-./vanilla/fifos/ofifo.v
-./vanilla/fifos/l0.v
+./alpha/alpha4/fifos/fifo_depth64.v
+./alpha/alpha4/fifos/fifo_depth8.v
+./alpha/alpha4/fifos/fifo_mux_2_1.v
+./alpha/alpha4/fifos/fifo_mux_8_1.v
+./alpha/alpha4/fifos/fifo_mux_16_1.v
+./alpha/alpha4/fifos/ofifo.v
+./alpha/alpha4/fifos/l0.v
 
-./vanilla/sram/sram_128b_w2048.v
-./vanilla/sram/sram_32b_w2048.v
+./alpha/alpha4/sram/sram_128b_w2048.v
+./alpha/alpha4/sram/sram_32b_w2048.v
 
-./tb/core_verif_tb.sv
+./alpha/alpha4/tb/core_tb.v
 
-./vanilla/sfp/sfp_8lane.v
-./vanilla/sfp/sfp_lane.v
+./alpha/alpha4/sfp/sfp_8lane.v
+./alpha/alpha4/sfp/sfp_lane.v

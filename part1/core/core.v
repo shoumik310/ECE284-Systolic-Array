@@ -13,9 +13,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
   output ofifo_valid;
   output [col*psum_bw-1:0] sfp_out; 
 
-  // --------------------------------------------------------
   // 1. Instruction Decoding
-  // --------------------------------------------------------
   wire acc_en       = inst[33];
   wire cen_pmem     = inst[32];
   wire wen_pmem     = inst[31];
@@ -31,9 +29,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
 
   wire [1:0] inst_w = {execute, load}; 
 
-  // --------------------------------------------------------
   // 2. Internal Wires
-  // --------------------------------------------------------
   wire [row*bw-1:0] xmem_out;         
   wire [col*psum_bw-1:0] pmem_out;    
   wire [col*psum_bw-1:0] pmem_in;     
@@ -48,9 +44,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .out(pmem_in)
   );
 
-  // --------------------------------------------------------
   // 3. Activation/Weight SRAM (XMEM)
-  // --------------------------------------------------------
   sram_32b_w2048 xmem_inst (
       .CLK(clk),
       .D(D_xmem),       
@@ -60,9 +54,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .A(a_xmem)        
   );
 
-  // --------------------------------------------------------
   // 4. Psum SRAM (PMEM)
-  // --------------------------------------------------------
   sram_128b_w2048 pmem_inst (
       .CLK(clk),
       .D(pmem_in),      
@@ -72,9 +64,7 @@ module core (clk, inst, ofifo_valid, D_xmem, sfp_out, reset);
       .A(a_pmem)
   );
 
-  // --------------------------------------------------------
   // 5. Corelet Instance
-  // --------------------------------------------------------
   corelet #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) corelet_inst (
       .clk(clk),
       .reset(reset),

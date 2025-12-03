@@ -40,9 +40,7 @@ module corelet (
   wire [col*psum_bw-1:0] array_out_s;
   wire [col-1:0] array_valid;
   
-  // --------------------------------------------------------
   // L0 Buffer
-  // --------------------------------------------------------
   l0 #(.row(row), .bw(bw)) l0_inst (
       .clk(clk),
       .reset(reset),
@@ -54,9 +52,7 @@ module corelet (
       .o_ready()    
   );
 
-  // --------------------------------------------------------
   // MAC Array
-  // --------------------------------------------------------
   mac_array #(.bw(bw), .psum_bw(psum_bw), .col(col), .row(row)) mac_array_inst (
       .clk(clk),
       .reset(reset),
@@ -67,9 +63,7 @@ module corelet (
       .valid(array_valid)
   );
 
-  // --------------------------------------------------------
-  // OFIFO (Now between Array and SFP)
-  // --------------------------------------------------------
+  // OFIFO 
   ofifo #(.col(col), .bw(psum_bw)) ofifo_inst (
       .clk(clk),
       .reset(reset),
@@ -82,9 +76,8 @@ module corelet (
       .o_valid(o_ofifo_valid)
   );
 
-  // --------------------------------------------------------
+
   // SFP (Accumulation & ReLU)
-  // --------------------------------------------------------
   sfp_8lane #(.col(col), .psum_bw(psum_bw)) sfp_inst (
       .clk(clk),
       .reset(reset),

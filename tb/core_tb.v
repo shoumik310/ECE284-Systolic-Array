@@ -116,6 +116,10 @@ initial begin
   $dumpvars(0,core_tb);
 
   x_file = $fopen("activation.txt", "r");
+  if (!x_file) begin
+    $display("ERROR: Cannot open %0s", x_file_name);
+    $finish;
+  end
   // Following three lines are to remove the first three comment lines of the file
   x_scan_file = $fgets(stringvar, x_file);
   x_scan_file = $fgets(stringvar, x_file);
@@ -152,23 +156,13 @@ initial begin
   A_pmem= 11'b00000000001;
   for (kij=0; kij<9; kij=kij+1) begin  // kij loop
 
-    // case(kij)
-    //  0: w_file_name = "./weights/weight_0.txt";
-    //  1: w_file_name = "./weights/weight_1.txt";
-    //  2: w_file_name = "./weights/weight_2.txt";
-    //  3: w_file_name = "./weights/weight_3.txt";
-    //  4: w_file_name = "./weights/weight_4.txt";
-    //  5: w_file_name = "./weights/weight_5.txt";
-    //  6: w_file_name = "./weights/weight_6.txt";
-    //  7: w_file_name = "./weights/weight_7.txt";
-    //  8: w_file_name = "./weights/weight_8.txt";
-    // endcase
-
     $sformat(w_file_name, "./weights/weight_%0d.txt", kij);
-    
-    // w_file_name = "weight.txt";
 
     w_file = $fopen(w_file_name, "r");
+    if (!w_file) begin
+      $display("ERROR: Cannot open %0s", w_file_name);
+      $finish;
+    end
     // Following three lines are to remove the first three comment lines of the file
     w_scan_file = $fgets(stringvar, w_file);
     w_scan_file = $fgets(stringvar, w_file);

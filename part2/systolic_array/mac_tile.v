@@ -21,7 +21,8 @@ reg signed [psum_bw-1:0] c_q;
 reg load_ready_q;
 reg [1:0] cnt;
 
-wire signed [psum_bw-1:0] mac_out;
+wire signed [(psum_bw/2)-1:0] mac_out1;
+wire signed [(psum_bw/2)-1:0] mac_out2;
 
 assign out_e = a_q;
 assign inst_e = inst_q;
@@ -30,19 +31,19 @@ mac #(.bw(bw)) mac_instance1 (
         .a(a_q[1:0]), 
         .b(b_q[bw-1:0]),
         .c(8'b0),
-	.out(mac_out[7:0])
+	.out(mac_out1)
 );
 
 mac #(.bw(bw)) mac_instance2 (
         .a(a_q[3:2]), 
         .b(b_q[2*bw-1:bw]),
         .c(8'b0),
-	.out(mac_out[15:8])
+	.out(mac_out2)
 );
 
 assign out_s = (mode == 0) ? 
-                (mac_out + in_n) :
-                (mac_out[7:0] + mac_out[15:8] + c_q);
+                ((mac_out2 <<< 2) + mac_out1 + c_q) :
+                (mac_out1 + mac_out2 + c_q);
 
 always @ (posedge clk) begin
     if (reset == 1) begin
@@ -80,10 +81,16 @@ always @ (posedge clk) begin
                 if (cnt > 1) begin
                     load_ready_q <= 1'b0;
                     inst_q[0] <= inst_w[0];
+                    
                     cnt <= 0;
                 end
             end
         end
+
+        if (load_ready_q == 1'b0) begin
+            inst_q[0] <= inst_w[0];
+        end
+
     end
 end
 

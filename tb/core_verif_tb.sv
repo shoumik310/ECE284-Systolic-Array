@@ -2,7 +2,7 @@
 // Please do not spread this code without permission 
 `timescale 1ns/1ps
 
-module core_tb;
+module core_tb_verif;
 
 parameter bw = 4;
 parameter psum_bw = 16;
@@ -200,8 +200,8 @@ initial begin
   execute  = 0;
   load     = 0;
 
-  $dumpfile("core_tb.vcd");
-  $dumpvars(0,core_tb);
+  $dumpfile("core_tb_verif.vcd");
+  $dumpvars(0,core_tb_verif);
 
   //////// Reset /////////
   #0.5 clk = 1'b0;   reset = 1;
@@ -449,8 +449,6 @@ initial begin
       $fdisplay(out_file, "%b", answer);
        if (sfp_out == answer) begin
          $display("%2d-th output featuremap Data matched! :D", i); 
-        //  $display("sfpout: %128b", sfp_out);
-        //  $display("answer: %128b", answer);
        end
        else begin
          $display("%2d-th output featuremap Data ERROR!!", i); 

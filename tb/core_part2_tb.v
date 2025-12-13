@@ -64,6 +64,7 @@ reg [8*30:1] stringvar;
 reg [8*60:1] w_file_name;
 reg [8*60:1] x_file_name;   // Variable for activation file name
 reg [8*60:1] out_file_name;   // Variable for activation file name
+reg [8*60:1] acc_add_file_name;   // Variable for accumulation address file name
 wire ofifo_valid;
 wire [col*psum_bw-1:0] sfp_out;
 
@@ -75,6 +76,7 @@ integer captured_data;
 integer t, i, j, k, kij;
 integer error;
 integer len_nij_mode; // Length of nij based on mode
+integer len_onij_mode; // Length of onij based on mode
 integer col_mode; // Length of nij based on mode
 
 // Mode Control Signal
@@ -115,21 +117,41 @@ initial begin
 
   // START MODE LOOP
   // This will run the full test for Mode 0, then Mode 1
-  for (k_mode = 0; k_mode < 1; k_mode = k_mode + 1) begin
+  for (k_mode = 1; k_mode < 2; k_mode = k_mode + 1) begin
   
     mode = k_mode;
     if (mode == 1) begin
       len_nij_mode = 16;
+      len_onij_mode = 4;
       num_tiles = 2;
       x_file_name = "./data/2_bit/activation.txt";
+      acc_add_file_name = "./acc_add_2bit.txt";
       col_mode = 16; // 16 columns for 2-bit activation
     end else begin
       len_nij_mode = 64;
+      len_onij_mode = 36;
       num_tiles = 1;
       x_file_name = "./data/4_bit/genActivation.txt";
+      acc_add_file_name = "./acc_add.txt";
       col_mode = 8; // 8 columns for 4-bit activation
     end
   
+    //////// Reset /////////
+    #0.5 clk = 1'b0;   reset = 1;
+    #0.5 clk = 1'b1; 
+
+    for (i=0; i<10 ; i=i+1) begin
+      #0.5 clk = 1'b0;
+      #0.5 clk = 1'b1;  
+    end
+
+    #0.5 clk = 1'b0;   reset = 0;
+    #0.5 clk = 1'b1; 
+
+    #0.5 clk = 1'b0;   
+    #0.5 clk = 1'b1;   
+    /////////////////////////
+
     $display("##########################################################");
     $display("### STARTING VERIFICATION FOR MODE: %0d (0=4b/4b, 1=2b/4b) ###", mode);
     $display("##########################################################");
@@ -160,22 +182,6 @@ initial begin
       x_scan_file = $fgets(stringvar, x_file);
       x_scan_file = $fgets(stringvar, x_file);
       x_scan_file = $fgets(stringvar, x_file);
-
-      //////// Reset /////////
-      #0.5 clk = 1'b0;   reset = 1;
-      #0.5 clk = 1'b1; 
-
-      for (i=0; i<10 ; i=i+1) begin
-        #0.5 clk = 1'b0;
-        #0.5 clk = 1'b1;  
-      end
-
-      #0.5 clk = 1'b0;   reset = 0;
-      #0.5 clk = 1'b1; 
-
-      #0.5 clk = 1'b0;   
-      #0.5 clk = 1'b1;   
-      /////////////////////////
 
       /////// Activation data writing to memory ///////
       for (t=0; t<len_nij_mode; t=t+1) begin  
@@ -366,14 +372,13 @@ initial begin
         /////////////////////////////////////
 
       end  // end of kij loop
-    //end // END TILE LOOP
 
 
       ////////// Accumulation /////////
       if (mode == 0) 
-        $sformat(out_file_name = "./data/4_bit/genOutput_acc.txt";
+        out_file_name = "./data/4_bit/genOutput_acc.txt";
       else
-        $sformat(out_file_name, "./data/2_bit/outputs/output_tile%0d.txt", k_tile);
+        $sformat(out_file_name, "./data/2_bit/outputs/final_out_tile%0d.txt", k_tile);
 
       out_file = $fopen(out_file_name, "r");  
       if (!out_file) begin
@@ -391,19 +396,19 @@ initial begin
       $display("############ Verification Start during accumulation #############"); 
       
       //SECTION - Accumulation
-      acc_file = $fopen("acc_add.txt", "r");
+      acc_file = $fopen(acc_add_file_name, "r");
       if (!acc_file) begin
         $display("ERROR: Cannot open acc_add.txt");
         $finish;
       end
 
-      for (i=0; i<len_onij+1; i=i+1) begin 
+      for (i=0; i<len_onij_mode+1; i=i+1) begin 
 
-        #0.5 clk = 1'b0; 
-        #0.5 clk = 1'b1;  
-
+        // Check result from previous iteration (before resetting)
         if (i>0) begin
-        out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+          #0.5 clk = 1'b0; 
+          #0.5 clk = 1'b1;  
+          out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
           if (sfp_out == answer)
             $display("%2d-th output featuremap Data matched! :D", i); 
           else begin
@@ -413,13 +418,14 @@ initial begin
             error = 1;
           end
         end
-      
-    
+
+        // Reset for next accumulation
         #0.5 clk = 1'b0; reset = 1;
         #0.5 clk = 1'b1;  
         #0.5 clk = 1'b0; reset = 0; 
         #0.5 clk = 1'b1;  
 
+        // Accumulation: read addresses and accumulate
         for (j=0; j<len_kij+1; j=j+1) begin 
 
           #0.5 clk = 1'b0;   
@@ -430,8 +436,13 @@ initial begin
           #0.5 clk = 1'b1;   
         end
 
+        // Disable accumulation and wait for sfp_out to stabilize
         #0.5 clk = 1'b0; acc = 0;
         #0.5 clk = 1'b1; 
+        
+        // Additional clock cycle to ensure sfp_out reflects final accumulated value
+        #0.5 clk = 1'b0;
+        #0.5 clk = 1'b1;
       end
       //!SECTION
 

@@ -117,7 +117,7 @@ initial begin
 
   // START MODE LOOP
   // This will run the full test for Mode 0, then Mode 1
-  for (k_mode = 1; k_mode < 2; k_mode = k_mode + 1) begin
+  for (k_mode = 0; k_mode < 2; k_mode = k_mode + 1) begin
   
     mode = k_mode;
     if (mode == 1) begin
@@ -359,7 +359,7 @@ initial begin
         #0.5 clk = 1'b0; ofifo_rd = 1;
         #0.5 clk = 1'b1;
 
-        #0.5 clk = 1'b0; WEN_pmem = 0; CEN_pmem = 0; 
+        #0.5 clk = 1'b0; WEN_pmem = 0; CEN_pmem = 0;
         #0.5 clk = 1'b1;
 
         for(t=0; t<len_nij_mode; t=t+1) begin
@@ -393,9 +393,10 @@ initial begin
 
       error = 0;
 
-      $display("############ Verification Start during accumulation #############"); 
+      $display("############ Verification Start during accumulation #############");
       
       //SECTION - Accumulation
+      // Open acc_file for each tile (file pointer needs to reset)
       acc_file = $fopen(acc_add_file_name, "r");
       if (!acc_file) begin
         $display("ERROR: Cannot open acc_add.txt");
@@ -409,6 +410,7 @@ initial begin
           #0.5 clk = 1'b0; 
           #0.5 clk = 1'b1;  
           out_scan_file = $fscanf(out_file,"%128b", answer); // reading from out file to answer
+          
           if (sfp_out == answer)
             $display("%2d-th output featuremap Data matched! :D", i); 
           else begin
@@ -422,18 +424,17 @@ initial begin
         // Reset for next accumulation
         #0.5 clk = 1'b0; reset = 1;
         #0.5 clk = 1'b1;  
-        #0.5 clk = 1'b0; reset = 0; 
+        #0.5 clk = 1'b0; reset = 0;
         #0.5 clk = 1'b1;  
 
-        // Accumulation: read addresses and accumulate
-        for (j=0; j<len_kij+1; j=j+1) begin 
 
-          #0.5 clk = 1'b0;   
-            if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
-                          else  begin CEN_pmem = 1; WEN_pmem = 1; end
+        for (j=0; j<len_kij+1; j=j+1) begin 
+        #0.5 clk = 1'b0;   
+          if (j<len_kij) begin CEN_pmem = 0; WEN_pmem = 1; acc_scan_file = $fscanf(acc_file,"%11b", A_pmem); end
+                        else  begin CEN_pmem = 1; WEN_pmem = 1; end
 
             if (j>0)  acc = 1;  
-          #0.5 clk = 1'b1;   
+          #0.5 clk = 1'b1;
         end
 
         // Disable accumulation and wait for sfp_out to stabilize
